@@ -238,6 +238,104 @@ async function getCandidateMetrics(cik: string, userAgent: string): Promise<Resp
   });
 }
 
+
+type FilingRecent = {
+  form?: string[];
+  filingDate?: string[];
+  reportDate?: string[];
+  accessionNumber?: string[];
+  primaryDocument?: string[];
+};
+type SubmissionPayload = {
+  filings?: { recent?: FilingRecent };
+};
+const filingTopics = [
+  { key: "business", title: "Business overview, products and operating footprint", patterns: [/ITEM\\s+1[.\\s]+BUSINESS/i, /ITEM\\s+1[.\\s]+DESCRIPTION OF BUSINESS/i] },
+  { key: "risk", title: "Risk factors", patterns: [/ITEM\\s+1A[.\\s]+RISK FACTORS/i] },
+  { key: "legal", title: "Legal proceedings", patterns: [/ITEM\\s+3[.\\s]+LEGAL PROCEEDINGS/i] },
+  { key: "management", title: "Management discussion and financial performance", patterns: [/ITEM\\s+7[.\\s]+MANAGEMENT[’']?S?\\s+DISCUSSION/i, /ITEM\\s+7[.\\s]+MANAGEMENT’S DISCUSSION/i] },
+  { key: "controls", title: "Controls and procedures", patterns: [/ITEM\\s+9A[.\\s]+CONTROLS/i] },
+];
+function cleanFilingText(html: string): string {
+  return html
+    .replace(/<script[\\s\\S]*?<\\/script>/gi, " ")
+    .replace(/<style[\\s\\S]*?<\\/style>/gi, " ")
+    .replace(/<[^>]+>/g, " ")
+    .replace(/&nbsp;|&#160;/gi, " ")
+    .replace(/&amp;/gi, "&")
+    .replace(/&quot;/gi, '"')
+    .replace(/&#39;|&apos;/gi, "'")
+    .replace(/&lt;/gi, "<")
+    .replace(/&gt;/gi, ">")
+    .replace(/\\s+/g, " ")
+    .trim();
+}
+function extractItemSection(text: string, patterns: RegExp[]): string | null {
+  let start = -1;
+  for (const pattern of patterns) {
+    const match = pattern.exec(text);
+    if (match && (start < 0 || match.index < start)) start = match.index;
+  }
+  if (start < 0) return null;
+  const tail = text.slice(start);
+  const nextItem = /\\bITEM\\s+(?:1B|1C|2|3|4|5|6|7|7A|7B|8|9|9A|9B|9C|10|11|12|13|14|15)[.\\s]+/gi;
+  nextItem.lastIndex = Math.max(1, tail.search(/\\bITEM\\s+/i) + 5);
+  const next = nextItem.exec(tail);
+  const section = (next ? tail.slice(0, next.index) : tail).trim();
+  return section.slice(0, 14000) || null;
+}
+async function getCompanyResearch(cik: string, userAgent: string): Promise<Response> {
+  const submissionsUrl = `https://data.sec.gov/submissions/CIK${cik}.json`;
+  let submissionsResponse: Response;
+  try {
+    submissionsResponse = await fetch(submissionsUrl, { headers: { "User-Agent": userAgent, Accept: "application/json" } });
+  } catch {
+    return json({ error: "Could not retrieve SEC filing submissions.", sourceUrl: submissionsUrl }, 502);
+  }
+  if (!submissionsResponse.ok) return json({ error: "SEC filing submissions request failed.", upstreamStatus: submissionsResponse.status }, 502);
+  const submissions = await submissionsResponse.json() as SubmissionPayload;
+  const recent = submissions.filings?.recent;
+  const forms = recent?.form ?? [];
+  const index = forms.findIndex(form => ["10-K", "20-F", "40-F"].includes(form));
+  if (index < 0) return json({ error: "No recent annual filing was found for this SEC registrant.", status: "unavailable", sourceUrl: submissionsUrl }, 404);
+  const form = forms[index];
+  const filedAt = recent?.filingDate?.[index] ?? "";
+  const reportDate = recent?.reportDate?.[index] ?? "";
+  const accessionNumber = recent?.accessionNumber?.[index] ?? "";
+  const primaryDocument = recent?.primaryDocument?.[index] ?? "";
+  if (!accessionNumber || !primaryDocument) return json({ error: "The annual filing record is missing its document locator.", status: "unavailable" }, 422);
+  const accession = accessionNumber.replace(/-/g, "");
+  const cikPath = String(Number(cik));
+  const documentUrl = `https://www.sec.gov/Archives/edgar/data/${cikPath}/${accession}/${primaryDocument}`;
+  let documentResponse: Response;
+  try {
+    documentResponse = await fetch(documentUrl, { headers: { "User-Agent": userAgent, Accept: "text/html" } });
+  } catch {
+    return json({ error: "Could not retrieve the annual filing document.", sourceUrl: documentUrl }, 502);
+  }
+  if (!documentResponse.ok) return json({ error: "The SEC annual filing document could not be retrieved.", upstreamStatus: documentResponse.status, sourceUrl: documentUrl }, 502);
+  const html = await documentResponse.text();
+  const text = cleanFilingText(html);
+  const sections = filingTopics.map(topic => {
+    const content = extractItemSection(text, topic.patterns);
+    return { key: topic.key, title: topic.title, content, dataStatus: content ? "candidate" : "unavailable",
+      note: content ? "Extracted from the identified annual filing section. Review the cited filing context before treating individual statements as verified facts." : "A matching section heading was not detected in this filing." };
+  });
+  return json({
+    source: "SEC EDGAR annual filing",
+    cik,
+    form,
+    filedAt,
+    reportDate,
+    accessionNumber,
+    documentUrl,
+    retrievedAt: new Date().toISOString(),
+    status: "filing_sections_extracted",
+    sections,
+    notice: "Section extraction is an initial text-based pass. It preserves the source filing link but does not yet verify individual statements, tables, or product-level profitability."
+  });
+}
+
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
     const url = new URL(request.url);
@@ -304,6 +402,14 @@ export default {
     }
 
 
+    const researchMatch = url.pathname.match(/^\\/sec\\/company\\/([^/]+)\\/research$/);
+    if (researchMatch) {
+      const cik = normaliseCik(researchMatch[1]);
+      if (!cik) return json({ error: "Invalid CIK. Supply between 1 and 10 digits." }, 400);
+      if (!env.SEC_USER_AGENT || !/\\S+\\s+\\S+/.test(env.SEC_USER_AGENT)) return json({ error: "SEC_USER_AGENT is not configured." }, 503);
+      return getCompanyResearch(cik, env.SEC_USER_AGENT);
+    }
+
     const metricsMatch = url.pathname.match(
       /^\/sec\/company\/([^/]+)\/metrics$/,
     );
@@ -354,6 +460,7 @@ export default {
           "/sec/company/{cik}/submissions",
           "/sec/company/{cik}/facts",
           "/sec/company/{cik}/metrics",
+          "/sec/company/{cik}/research",
         ],
       },
       404,
