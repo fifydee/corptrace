@@ -55,3 +55,21 @@ These routes return raw SEC JSON with source URL and retrieval timestamp. They a
 ## Company identifier lookup
 
 The API also exposes `GET /sec/lookup?q={ticker-or-company-name}`. It searches the SEC company-tickers JSON file and returns up to 20 matching CIK/ticker/registrant-name records. Treat this as candidate discovery only: users and later research workflows must confirm the correct legal entity, especially for similar company names and multiple share classes.
+
+## Annual metric candidate endpoint
+
+The Worker exposes `GET /sec/company/{cik}/metrics`. It currently searches the SEC company-facts `us-gaap` namespace for candidate values for:
+- Revenue
+- Net income
+- Operating income
+- Total assets
+- Total liabilities
+- Operating cash flow
+
+The initial selector considers 10-K, 20-F and 40-F filing facts, applies a duration window to flow metrics and instant facts to balance-sheet metrics, then selects the most recent period end. It returns the concept, unit, dates, filing form, accession number and filing-index URL.
+
+**This is a candidate selector, not a verification engine.** It does not yet inspect company-specific taxonomy extensions, filing presentation/linkbases, segment dimensions, amendments in full context, restatements, accounting policy differences or whether the selected concept is the best company-specific representation. Its output is explicitly marked `candidate_unverified`. Do not use it to publish rankings or label metrics verified without a filing review and reconciliation step.
+
+## SEC request identification
+
+The Worker config currently identifies the application as `CorpTrace/0.1 (corptrace@protonmail.com)`. This contact value was supplied by the project owner. It is an application identification header, not an API key or secret. Because the repository is public, the contact address is visible in its configuration.
