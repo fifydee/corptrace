@@ -253,7 +253,7 @@ export default {
       if (query.length < 1 || query.length > 80) {
         return json({ error: "Supply a search query between 1 and 80 characters." }, 400);
       }
-      if (!env.SEC_USER_AGENT || !/\\S+\s+\\S+/.test(env.SEC_USER_AGENT)) {
+      if (!env.SEC_USER_AGENT || !/\S+\s+\S+/.test(env.SEC_USER_AGENT)) {
         return json({
           error: "SEC_USER_AGENT is not configured.",
           guidance: "Set a descriptive application name and a real contact address before using SEC routes.",
@@ -289,14 +289,14 @@ export default {
 
 
     const metricsMatch = url.pathname.match(
-      /^\\/sec\\/company\\/([^/]+)\\/metrics$/,
+      /^\/sec\/company\/([^/]+)\/metrics$/,
     );
     if (metricsMatch) {
       const cik = normaliseCik(metricsMatch[1]);
       if (!cik) {
         return json({ error: "Invalid CIK. Supply between 1 and 10 digits." }, 400);
       }
-      if (!env.SEC_USER_AGENT || !/\\S+\\s+\\S+/.test(env.SEC_USER_AGENT)) {
+      if (!env.SEC_USER_AGENT || !/\S+\s+\S+/.test(env.SEC_USER_AGENT)) {
         return json({ error: "SEC_USER_AGENT is not configured." }, 503);
       }
       return getCandidateMetrics(cik, env.SEC_USER_AGENT);
