@@ -4,49 +4,46 @@ CorpTrace uses two Cloudflare services:
 - **Worker API:** `corptrace-api` from `apps/api/wrangler.toml`
 - **Pages frontend:** project `corptrace-web`, built from `apps/web`
 
-## GitHub Actions deployment
+## GitHub Actions prerequisites
 
-The repository contains a manual workflow at **Actions → Deploy CorpTrace → Run workflow**. Before running it, configure the repository:
-
-### Secrets
-- `CLOUDFLARE_API_TOKEN`: an API token with Workers Scripts edit and Cloudflare Pages edit permissions for the intended account.
+Add these repository secrets under **Settings → Secrets and variables → Actions → Secrets**:
+- `CLOUDFLARE_API_TOKEN`: a scoped token with Workers Scripts edit and Cloudflare Pages edit permissions.
 - `CLOUDFLARE_ACCOUNT_ID`: the Cloudflare account ID.
 
-### Repository variable
-- `VITE_API_BASE_URL`: the full HTTPS origin of the deployed Worker, for example `https://corptrace-api.<your-workers-subdomain>.workers.dev`. Do not include a trailing slash.
+Create or use a Cloudflare Pages project named `corptrace-web` and enable a `workers.dev` subdomain for the account.
 
-## One-time Cloudflare setup
+## Two-stage first deployment
 
-1. Create or use a Cloudflare account and enable the Workers & Pages product.
-2. Create the Pages project named `corptrace-web` with production branch `main` (the workflow deploys the built static files).
-3. Confirm the account has a `workers.dev` subdomain enabled.
-4. Create a scoped API token with permission to deploy Workers and Pages.
-5. Add the two GitHub Actions secrets and the API-origin repository variable above.
-6. Run the Deploy CorpTrace workflow.
+The API must be deployed before the frontend because the frontend build needs the API's actual URL.
 
-The Worker is deployed first. The frontend is then built with the API origin and uploaded to Pages. The expected frontend address is `https://corptrace-web.pages.dev`, subject to Cloudflare's project availability and account configuration.
+1. In GitHub, open **Actions → Deploy CorpTrace API → Run workflow**. This deploys only the Worker after running the API TypeScript check.
+2. Open that workflow run's **Deploy Cloudflare Worker** log and copy the deployed Worker URL. It should look like `https://corptrace-api.<your-workers-subdomain>.workers.dev`. Use the exact URL printed by Wrangler, not this example.
+3. In **Settings → Secrets and variables → Actions → Variables**, create `VITE_API_BASE_URL` with the Worker URL as its value, without a trailing slash.
+4. Open **Actions → Deploy CorpTrace → Run workflow**. This deploys the Worker again and then builds and publishes the frontend to Pages.
 
-## SEC contact
+Never put the API token or account ID in a repository variable, source file or chat message.
 
-The Worker configuration identifies CorpTrace with the contact address approved by the project owner. It is public application metadata, not a credential.
+## Smoke checks
 
-## Smoke checks after deployment
-
-Open these endpoints on the deployed Worker:
+On the deployed Worker, open:
 - `/health` — should return JSON with `status: "ok"`.
 - `/sec/lookup?q=Microsoft` — should return SEC registrant matches.
 - `/sec/company/{CIK}/submissions` — should return SEC filing history.
-- `/sec/company/{CIK}/metrics` — should return candidate financial facts and filing links.
+- `/sec/company/{CIK}/metrics` — should return source-traceable candidate financial facts.
+- `/sec/company/{CIK}/research` — should return annual filing section extraction where supported.
 
-Then open the Pages site, search for Microsoft, select the SEC registrant match and confirm that the company research page displays source response metadata, candidate financial values and recent filings.
+Then open the Pages site, search for a company, select the correct SEC registrant and confirm that the research page displays filing dates, source links, metric status and annual-report extracts.
 
-## Current limitation
+## Global top-20 research universe
 
-The candidate selector is a first-pass XBRL filter, not a filing-review system. Its outputs must remain visibly marked as unverified candidates. Do not use them to publish a global profitability ranking until the concepts, periods, filing amendments and consolidated reporting context are reviewed.
+The Explore page starts with a global top-20 profitability reference universe based on the Fortune Global 500 2026 edition (fiscal 2025). It is a discovery and research starting point, not a live TTM ranking. Company reporting periods, accounting definitions and currencies differ. CorpTrace must show only figures traceable to source filings, and must not fill missing ranking values with estimates or silently mix periods.
 
-## Cost and operational note
+The current first-pass SEC data adapter is strongest for SEC registrants. Non-US companies may have SEC filings (for example, 20-F/40-F) or require their home-market regulator and annual-report source. A company absent from SEC search must not be treated as unavailable globally; it needs a non-US source adapter.
 
-Check current Cloudflare plan limits and account settings before production use. This project is designed to start lean, but this guide does not promise unlimited free usage.
+## Current limitations
 
+- The XBRL metric selector covers a limited set of standard US-GAAP concepts. It does not yet fully resolve issuer-specific extensions, all accounting frameworks, amendments, restatements or consolidation context.
+- Annual report section extraction is heuristic. Extracted passages are marked for review and are not a verified summary of every claim or table.
+- The global ranking reference is not recomputed from CorpTrace-normalised source filings yet.
 
-The deployment workflow intentionally stops if `VITE_API_BASE_URL` is not configured, so the published frontend cannot silently ship with API calls pointed at the Pages origin.
+Check current Cloudflare plan limits and account settings before production use; this guide does not promise unlimited free usage.
