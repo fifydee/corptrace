@@ -8,7 +8,7 @@
 5. Secondary sources only as supporting context, never silently substituted for primary disclosure.
 
 ## Data states
-**Verified:** directly supported by an identified source. Record document, URL, reporting period and retrieval date.
+**Verified:** directly supported by an identified primary source, with the source document/URL, reporting period and retrieval date recorded. For SEC XBRL facts, CorpTrace may label a metric **Verified · SEC-reported** when it is tied to a specific 10-K, 20-F or 40-F accession and passes source-traceability checks: an approved standard concept mapping, a valid unit, the expected annual duration or instant shape, a reporting date, filing date and accession number. Link directly to the filing index. This means the value is verified as reported in that filing; it does not mean CorpTrace has independently audited the company, resolved every accounting-policy difference, or established comparability with another company. Keep those limitations visible. If any required source or mapping check is missing or ambiguous, retain **Candidate** or mark **Unavailable** rather than claiming verification.
 
 **Estimated:** use only where reported information cannot be obtained and a defensible method exists. Show a visible estimate label, explain why an estimate was required, disclose method and limitations, and avoid false precision.
 
