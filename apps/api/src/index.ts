@@ -99,7 +99,7 @@ export default {
       if (query.length < 1 || query.length > 80) {
         return json({ error: "Supply a search query between 1 and 80 characters." }, 400);
       }
-      if (!env.SEC_USER_AGENT || !/\\S+\\s+\\S+/.test(env.SEC_USER_AGENT)) {
+      if (!env.SEC_USER_AGENT || !/\\S+\s+\\S+/.test(env.SEC_USER_AGENT)) {
         return json({
           error: "SEC_USER_AGENT is not configured.",
           guidance: "Set a descriptive application name and a real contact address before using SEC routes.",
