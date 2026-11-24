@@ -46,3 +46,6 @@ D1 is the initial relational database candidate, subject to checking current pla
 
 ## Testing
 Unit tests for calculations, period alignment and FX; contract tests for provider adapters using fixtures; component tests for data-state rendering; integration and end-to-end tests for key journeys.
+
+## Annual filing narrative extraction
+The SEC adapter can retrieve the latest annual filing document (10-K, 20-F or 40-F) and perform a first-pass extraction of common filing sections: business, risk factors, legal proceedings and management discussion. Extraction is text-based and heuristic. The response retains the original filing URL, form, filing date and reporting date. Extracted passages remain **Candidate · review required**; only individual facts that have been validated against source context may be promoted to Verified. The current pass may miss tables, multi-document exhibits, unusual heading formats and information disclosed outside the matched sections. The UI must expose those limitations and never imply that a missing passage proves the company does not disclose the information elsewhere.
