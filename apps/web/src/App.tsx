@@ -1,4 +1,137 @@
-import{useMemo,useState}from"react";import{Search,ArrowRight,Globe2,Users,ShieldCheck,Menu,X,ChevronRight,BarChart3,Building2,Sparkles}from"lucide-react";import{companies}from"./data";
-type Page="Explore"|"Directory"|"Research"|"Compare"|"Developments";
-const cats=[["Company overview","Profile and history","Headquarters and operations","Products and services"],["Financial information","Financial summary","Revenue and income sources","Expenses and operating costs","Profitability and margins","Debt and financial position"],["People","Employee count and workforce distribution","Leadership and compensation"],["Strategy and competition","Investment and R&D","Acquisitions and mergers","SWOT analysis"],["Risk and developments","Risk factors","Legal cases and disputes","Scandals and controversies","Recent company news"]];
-export default function App(){const[page,setPage]=useState<Page>("Explore"),[query,setQuery]=useState(""),[company,setCompany]=useState("Microsoft"),[picked,setPicked]=useState(["Financial summary","Revenue and income sources","SWOT analysis"]),[mobile,setMobile]=useState(false);const matches=useMemo(()=>companies.filter(c=>c.join(" ").toLowerCase().includes(query.toLowerCase())),[query]);return <div className="shell"><header><button className="brand" onClick={()=>setPage("Explore")}><b>C<span>.</span></b><span><strong>CorpTrace</strong><small>COMPANY INTELLIGENCE, MADE CLEAR</small></span></button><button className="hamb" onClick={()=>setMobile(!mobile)}>{mobile?<X/>:<Menu/>}</button><nav className={mobile?"show":""}>{(["Explore","Directory","Research","Compare","Developments"]as Page[]).map(p=><button className={page===p?"active":""} onClick={()=>{setPage(p);setMobile(false)}}>{p==="Directory"?"Company directory":p==="Research"?"Research a company":p==="Compare"?"Compare companies":p==="Developments"?"News & developments":p}</button>)}</nav><span className="preview">● PRODUCT PREVIEW</span></header>{page==="Explore"?<><section className="hero"><div><label> A CLEARER VIEW OF CORPORATE POWER</label><h1>Who profits<br/>from <em>your day?</em></h1><p>Explore the companies behind the products, platforms and services you use. See how they make money, where they invest and what shapes their future.</p><div className="actions"><button className="primary" onClick={()=>document.getElementById("lineup")?.scrollIntoView({behavior:"smooth"})}>Explore the companies ↘</button><button className="link" onClick={()=>setPage("Directory")}>Research any company →</button></div><small className="method">Featured rankings will use trailing-twelve-month net income, separately identified from each company's latest completed financial year.</small></div><div className="hero-art"><div className="orb"><small>THE BIG PICTURE</small><b>10</b><span>companies · one connected world</span></div><div className="stamp">Follow the<br/>money trail</div></div></section><section id="lineup" className="section"><label>01 / THE LINEUP</label><h2>The companies behind the numbers</h2><p>A starting point for exploring corporate scale, business models and global reach.</p><div className="notice"><Sparkles size={16}/> Preview directory. Financial figures will appear only after source verification.</div><div className="grid">{companies.map((c,i)=><article><div className="cardtop"><small>0{i+1}</small><b>{c[0].slice(0,2)}</b><span>{c[2]}</span></div><h3>{c[1]}</h3><p>{c[4]}</p><footer><span><Globe2 size={13}/>{c[3]}</span><strong>Awaiting verified financial data</strong></footer></article>)}</div></section><section className="section pale"><label>02 / WHY THEY WIN</label><h2>What makes a business profitable?</h2><p>Revenue is the money a company brings in. Net income is what remains after expenses, taxes and other costs. CorpTrace keeps those measures distinct.</p><div className="explain"><b>Revenue <em>≠</em> profit</b><div><span>Revenue</span><i style={{width:"94%"}}/><span>Operating costs</span><i style={{width:"61%"}}/><span>Net income</span><i style={{width:"28%"}}/><small>Illustrative explanation, not company figures.</small></div></div></section><section className="section"><label>03 / FOLLOW THE MONEY</label><h2>Where the money comes from</h2><p>Explore how products, subscriptions, advertising, cloud services and other business segments contribute to company revenue.</p><div className="feature"><div className="donut"><b>Revenue<br/>mix</b></div><div><h3>One company.<br/>Many sources of income.</h3><button className="link" onClick={()=>setPage("Research")}>Explore company research →</button></div></div></section><section className="section pale"><label>04 / GLOBAL REACH</label><h2>Where in the world they operate</h2><p>See the difference between where a company earns revenue, where its people work and where it has operations.</p><div className="regions">{["Americas","Europe, Middle East & Africa","Asia Pacific"].map((r,i)=><div>{r}<i style={{width:[90,65,44][i]+"%"}}/></div>)}</div></section><section className="section"><label>05 / YOUR EVERYDAY</label><h2>A day in your life</h2><p>Everyday moments connect people to powerful business models: devices, search, social platforms, cloud tools, shopping and streaming.</p><div className="feature"><Building2 size={45}/><h3>Follow the companies behind the everyday.</h3></div></section><section className="section pale"><label>06 / INVESTMENT · 07 / CAPITAL ALLOCATION · 08 / RISK</label><h2>Where they invest, and what keeps them up at night</h2><p>Explore disclosed AI infrastructure, research, acquisitions, shareholder returns, competition, regulation and operational risks.</p><div className="feature"><BarChart3 size={42}/><ShieldCheck size={42}/><span>Source-backed research, explained in plain language.</span></div></section><section className="closing"><h2>There's more to a company<br/>than its <em>headline numbers.</em></h2><button className="primary" onClick={()=>setPage("Directory")}>Start exploring →</button></section></>:page==="Directory"?<main className="workspace"><label>DISCOVER PUBLIC COMPANIES</label><h1>Find a company.<br/><em>Follow the money.</em></h1><p>Search by company name or ticker, or browse this preview directory.</p><div className="search"><Search/><input value={query} onChange={e=>setQuery(e.target.value)} placeholder="Company name, ticker or country"/><small>{matches.length} results</small></div><div className="directory">{matches.map(c=><button onClick={()=>{setCompany(c[1]);setPage("Research")}}><b>{c[0].slice(0,2)}</b><span><strong>{c[1]}</strong><small>{c[2]} · {c[3]}</small></span><ChevronRight/></button>)}</div><small>Country and industry browsing will expand as the company data catalogue is integrated.</small></main>:page==="Research"?<main className="workspace"><label>COMPANY RESEARCH</label><h1>Look beyond<br/><em>the headline numbers.</em></h1><p>Choose a company and select the information you want to understand.</p><div className="search"><Search/><input value={company} onChange={e=>setCompany(e.target.value)} placeholder="Company name or ticker"/></div><div className="research">{cats.map(g=><section><h3>{g[0]}</h3>{g.slice(1).map(x=><label><input type="checkbox" checked={picked.includes(x)} onChange={()=>setPicked(s=>s.includes(x)?s.filter(v=>v!==x):[...s,x])}/>{x}</label>)}</section>)}</div><div className="notice"><ShieldCheck/>Research selections are a prototype. Live filing retrieval is the next milestone.</div></main>:page==="Compare"?<main className="workspace"><label>SIDE-BY-SIDE ANALYSIS</label><h1>See what sets<br/><em>companies apart.</em></h1><p>Compare two or three public companies across the dimensions that matter to you.</p><div className="compare">{[1,2,3].map(n=><select><option>{n===1?"Microsoft":n===2?"Alphabet":"Add a company"}</option>{companies.map(c=><option>{c[1]}</option>)}</select>)}</div><div className="notice">Select financial, operational, geographic, investment, risk and SWOT categories for comparison. Live analysis is being built.</div></main>:<main className="workspace"><label>CORPORATE DEVELOPMENTS</label><h1>What's happening<br/><em>behind the scenes.</em></h1><p>Company news, acquisitions, legal proceedings and regulatory developments with dates and original sources.</p><div className="notice">This module will distinguish allegations, investigations, lawsuits, settlements and confirmed legal findings.</div></main>}<footer className="bottom"><b>CorpTrace</b><span>Company intelligence, made clear.</span><small>PRODUCT PREVIEW · NOT LIVE FINANCIAL RESEARCH</small></footer></div>}
+import { useEffect, useMemo, useState } from "react";
+import {
+  ArrowLeft, ArrowUpRight, BarChart3, Building2, CheckCircle2, ChevronRight,
+  CircleAlert, FileText, Globe2, LoaderCircle, Search, ShieldCheck, Sparkles,
+} from "lucide-react";
+import { companies } from "./data";
+
+type Page = "Explore" | "Directory" | "Research" | "Compare" | "Developments";
+type Company = { cik: string; ticker: string | null; companyName: string | null };
+type Metric = {
+  metric: string; label: string; value: number; unit: string; concept: string;
+  periodStart: string | null; periodEnd: string; fiscalYear: number | null;
+  fiscalPeriod: string | null; form: string; filedAt: string; accessionNumber: string;
+  filingUrl: string; dataStatus: string; caveat: string;
+} | null;
+type ResearchPayload = {
+  source: string; companyName: string | null; cik: string; sourceUrl: string;
+  retrievedAt: string; reportingBasis: string; status: string; metrics: Metric[];
+  notice: string;
+};
+type FilingPayload = {
+  source: string; resource: string; cik: string; sourceUrl: string;
+  retrievedAt: string; data: { name?: string; tickers?: string[]; exchanges?: string[]; filings?: {
+    recent?: { form?: string[]; filingDate?: string[]; reportDate?: string[]; accessionNumber?: string[]; primaryDocument?: string[] };
+  } };
+};
+
+const API_BASE = (import.meta.env.VITE_API_BASE_URL ?? "").replace(/\/$/, "");
+const apiUrl = (path: string) => `${API_BASE}${path}`;
+const money = (value: number, unit: string) => {
+  if (unit === "USD") return new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 }).format(value);
+  return new Intl.NumberFormat("en-US", { maximumFractionDigits: 0 }).format(value) + " " + unit;
+};
+
+function App() {
+  const [page, setPage] = useState<Page>("Explore");
+  const [query, setQuery] = useState("");
+  const [company, setCompany] = useState<Company | null>(null);
+  const [lookup, setLookup] = useState<Company[]>([]);
+  const [lookupLoading, setLookupLoading] = useState(false);
+  const [lookupError, setLookupError] = useState("");
+  const [metrics, setMetrics] = useState<ResearchPayload | null>(null);
+  const [filings, setFilings] = useState<FilingPayload | null>(null);
+  const [researchLoading, setResearchLoading] = useState(false);
+  const [researchError, setResearchError] = useState("");
+  const [mobile, setMobile] = useState(false);
+  const [picked, setPicked] = useState(["Financial summary", "Revenue and income sources", "SWOT analysis"]);
+
+  const demoMatches = useMemo(() => companies.filter(c => c.join(" ").toLowerCase().includes(query.toLowerCase())), [query]);
+
+  useEffect(() => {
+    if (query.trim().length < 2) { setLookup([]); setLookupError(""); return; }
+    const timer = window.setTimeout(async () => {
+      setLookupLoading(true); setLookupError("");
+      try {
+        const response = await fetch(apiUrl(`/sec/lookup?q=${encodeURIComponent(query.trim())}`));
+        const body = await response.json();
+        if (!response.ok) throw new Error(body.error ?? "Company search failed.");
+        setLookup(body.results ?? []);
+      } catch (error) {
+        setLookupError(error instanceof Error ? error.message : "Company search failed.");
+      } finally { setLookupLoading(false); }
+    }, 350);
+    return () => window.clearTimeout(timer);
+  }, [query]);
+
+  async function openCompany(item: Company) {
+    setCompany(item); setPage("Research"); setMetrics(null); setFilings(null);
+    setResearchError(""); setResearchLoading(true);
+    try {
+      const [metricResponse, filingResponse] = await Promise.all([
+        fetch(apiUrl(`/sec/company/${item.cik}/metrics`)),
+        fetch(apiUrl(`/sec/company/${item.cik}/submissions`)),
+      ]);
+      const metricBody = await metricResponse.json();
+      const filingBody = await filingResponse.json();
+      if (!metricResponse.ok) throw new Error(metricBody.error ?? "Could not retrieve company facts.");
+      if (!filingResponse.ok) throw new Error(filingBody.error ?? "Could not retrieve filing history.");
+      setMetrics(metricBody); setFilings(filingBody);
+    } catch (error) {
+      setResearchError(error instanceof Error ? error.message : "Research request failed.");
+    } finally { setResearchLoading(false); }
+  }
+
+  const nav: Page[] = ["Explore", "Directory", "Research", "Compare", "Developments"];
+  const categories = [
+    ["Company overview", "Profile and history", "Headquarters and operations", "Products and services"],
+    ["Financial information", "Financial summary", "Revenue and income sources", "Expenses and operating costs", "Profitability and margins", "Debt and financial position"],
+    ["People", "Employee count and workforce distribution", "Leadership and compensation"],
+    ["Strategy and competition", "Investment and R&D", "Acquisitions and mergers", "SWOT analysis"],
+    ["Risk and developments", "Risk factors", "Legal cases and disputes", "Scandals and controversies", "Recent company news"],
+  ];
+
+  return <div className="shell">
+    <header>
+      <button className="brand" onClick={() => setPage("Explore")}><b>C<span>.</span></b><span><strong>CorpTrace</strong><small>COMPANY INTELLIGENCE, MADE CLEAR</small></span></button>
+      <nav className={mobile ? "show" : ""}>{nav.map(p => <button key={p} className={page === p ? "active" : ""} onClick={() => { setPage(p); setMobile(false); }}>{p === "Directory" ? "Company directory" : p === "Research" ? "Research a company" : p === "Compare" ? "Compare companies" : p === "Developments" ? "News & developments" : p}</button>)}</nav>
+      <span className="preview">● LIVE DATA PREVIEW</span>
+      <button className="hamb" onClick={() => setMobile(v => !v)}>Menu</button>
+    </header>
+
+    {page === "Explore" && <>
+      <section className="hero"><div><label>A CLEARER VIEW OF CORPORATE POWER</label><h1>Who profits<br/>from <em>your day?</em></h1><p>Explore the companies behind the products, platforms and services you use. See how they make money, where they invest and what shapes their future.</p><div className="actions"><button className="primary" onClick={() => setPage("Directory")}>Find a company ↘</button><button className="link" onClick={() => setPage("Research")}>Start company research →</button></div><small className="method">Live SEC registrant search and filing retrieval are available for supported US-listed registrants. Financial facts are research candidates until filing review.</small></div><div className="hero-art"><div className="orb"><small>THE BIG PICTURE</small><b>01</b><span>Follow the money trail</span></div><div className="stamp">Source<br/>first</div></div></section>
+      <section className="section" id="lineup"><label>01 / EXPLORE</label><h2>The companies behind the numbers</h2><p>Start with a company you know. Search official SEC registrant records and open its filing research.</p><button className="primary" onClick={() => setPage("Directory")}>Search companies <ArrowUpRight size={14}/></button><div className="grid">{companies.slice(0,5).map(c=><article key={c[0]}><div className="cardtop"><small>{c[0]}</small><b>{c[0].slice(0,2)}</b><span>{c[2]}</span></div><h3>{c[1]}</h3><p>{c[4]}</p><footer><span><Globe2 size={13}/>{c[3]}</span><strong>Open live SEC research via search</strong></footer></article>)}</div></section>
+      <section className="section pale"><label>02 / READ THE NUMBERS</label><h2>Revenue is not profit</h2><p>Revenue is the money a company brings in. Net income is what remains after expenses, taxes and other costs. CorpTrace keeps those measures distinct and links candidate values back to the filing.</p><div className="explain"><b>Revenue <em>≠</em> profit</b><div><span>Revenue</span><i style={{width:"94%"}}/><span>Operating costs</span><i style={{width:"61%"}}/><span>Net income</span><i style={{width:"28%"}}/><small>Illustrative explanation, not company figures.</small></div></div></section>
+      <section className="section"><label>03 / RESEARCH WITH CONTEXT</label><h2>Every figure needs a trail.</h2><p>Review filing dates, reporting periods, accounting concepts and source documents before relying on a number. CorpTrace distinguishes raw source data from reviewed metrics.</p><div className="feature"><ShieldCheck size={42}/><h3>Source-backed research, explained in plain language.</h3></div></section>
+    </>}
+
+    {page === "Directory" && <main className="workspace"><label>DISCOVER PUBLIC COMPANIES</label><h1>Find a company.<br/><em>Follow the money.</em></h1><p>Search SEC registrant records by company name or ticker. Search suggestions from the prototype directory are shown separately.</p><div className="search"><Search/><input value={query} onChange={e => setQuery(e.target.value)} placeholder="Try Microsoft, Apple or MSFT"/>{lookupLoading && <LoaderCircle className="spin"/>}</div>
+      {lookupError && <div className="notice warning"><CircleAlert size={17}/>{lookupError}</div>}
+      {lookup.length > 0 && <><h2>SEC registrant matches</h2><div className="directory">{lookup.map(item=><button key={item.cik} onClick={() => openCompany(item)}><b>{item.ticker ?? "SEC"}</b><span><strong>{item.companyName}</strong><small>CIK {item.cik} · SEC EDGAR</small></span><ChevronRight/></button>)}</div></>}
+      {query.trim().length >= 2 && !lookupLoading && lookup.length === 0 && !lookupError && <div className="notice">No SEC registrants matched this search. Try a ticker symbol or legal company name.</div>}
+      <h2 className="subhead">Explore the starter list</h2><div className="directory">{demoMatches.map(c=><button key={c[0]} onClick={() => {setQuery(c[1]);setPage("Directory");}}><b>{c[0]}</b><span><strong>{c[1]}</strong><small>{c[2]} · {c[3]} · Illustrative directory entry</small></span><ChevronRight/></button>)}</div><small>Starter-list entries are discovery suggestions only. They are not all SEC registrants and do not contain verified financial results.</small></main>}
+
+    {page === "Research" && <main className="workspace"><button className="back" onClick={() => setPage("Directory")}><ArrowLeft size={14}/> Company search</button><label>COMPANY RESEARCH</label><h1>{company ? company.companyName : "Look beyond"}<br/><em>{company ? "Filing research" : "the headline numbers."}</em></h1>
+      {!company && <><p>Search the SEC directory to open a company research page.</p><button className="primary" onClick={() => setPage("Directory")}>Find a company</button></>}
+      {company && <><div className="company-meta"><span>CIK {company.cik}</span><span>{company.ticker ?? "Ticker not supplied"}</span><span>SEC EDGAR</span></div>
+        {researchLoading && <div className="notice"><LoaderCircle className="spin"/> Retrieving SEC company facts and filing history…</div>}
+        {researchError && <div className="notice warning"><CircleAlert/>{researchError}</div>}
+        {metrics && <><div className="source-banner"><CheckCircle2 size={18}/><span><b>Live SEC source response received</b><small>Retrieved {new Date(metrics.retrievedAt).toLocaleString()} · {metrics.reportingBasis}</small></span><a href={metrics.sourceUrl} target="_blank" rel="noreferrer">Open source <ArrowUpRight size={13}/></a></div>
+          <div className="notice warning"><CircleAlert size={17}/>{metrics.notice}</div>
+          <h2>Financial metric candidates</h2><p>Values below are selected from SEC XBRL facts. They are not yet reviewed or approved as verified CorpTrace figures.</p>
+          <div className="metric-grid">{metrics.metrics.map((m,i)=><article key={m?.metric ?? i} className="metric-card"><small>{m?.label ?? "Metric unavailable"}</small>{m ? <><strong>{money(m.value,m.unit)}</strong><span>{m.periodStart ? `${m.periodStart} to ${m.periodEnd}` : `As at ${m.periodEnd}`}</span><span>{m.form} · Filed {m.filedAt}</span><a href={m.filingUrl} target="_blank" rel="noreferrer">View filing index <ArrowUpRight size={13}/></a><em>Candidate · not verified</em></> : <><strong>Unavailable</strong><span>No matching standard US-GAAP annual fact found.</span></>}</article>)}</div>
+        </>}
+        {filings && <><h2>Recent filing history</h2><p>Recent SEC submissions for {filings.data.name ?? company.companyName}.</p><div className="filing-list">{(filings.data.filings?.recent?.form ?? []).map((form,i)=>({form,date:filings.data.filings?.recent?.filingDate?.[i] ?? "",report:filings.data.filings?.recent?.reportDate?.[i] ?? "",accession:filings.data.filings?.recent?.accessionNumber?.[i] ?? "",doc:filings.data.filings?.recent?.primaryDocument?.[i] ?? ""})).filter(x=>["10-K","20-F","40-F","10-Q","8-K"].includes(x.form)).slice(0,12).map((f,i)=>{const cik=company.cik.replace(/^0+/,"");const accession=f.accession.replace(/-/g,"");const url=`https://www.sec.gov/Archives/edgar/data/${cik}/${accession}/${f.doc}`;return <a key={f.accession+i} href={url} target="_blank" rel="noreferrer"><FileText size={17}/><span><b>{f.form}</b><small>Filed {f.date} · Reporting date {f.report || "not supplied"}</small></span><ArrowUpRight size={14}/></a>})}</div></>}
+      </>}
+    </main>}
+
+    {page === "Compare" && <main className="workspace"><label>SIDE-BY-SIDE ANALYSIS</label><h1>See what sets<br/><em>companies apart.</em></h1><p>Company comparison is part of the next release milestone. It will use aligned reporting periods and clearly explain differences in accounting and currency.</p><div className="notice"><Sparkles/>Comparison interface is planned; live comparisons are not enabled in this first preview.</div></main>}
+    {page === "Developments" && <main className="workspace"><label>CORPORATE DEVELOPMENTS</label><h1>What's happening<br/><em>behind the scenes.</em></h1><p>News, acquisitions, legal proceedings and regulatory developments will be added with dates, original sources and clear distinctions between allegations and confirmed findings.</p><div className="notice"><ShieldCheck/>This module is planned and is not yet connected to live news sources.</div></main>}
+
+    <section className="section pale"><label>RESEARCH METHOD</label><h2>How to read CorpTrace</h2><div className="status-legend"><span><i className="dot verified"/> Verified: checked against a reliable source.</span><span><i className="dot candidate"/> Candidate: retrieved automatically, pending review.</span><span><i className="dot unavailable"/> Unavailable: no defensible figure identified.</span></div></section>
+    <footer className="bottom"><b>CorpTrace</b><span>Company intelligence, made clear.</span><small>EARLY LIVE DATA PREVIEW · NOT INVESTMENT ADVICE</small></footer>
+  </div>;
+}
+
+export default App;
