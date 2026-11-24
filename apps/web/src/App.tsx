@@ -11,7 +11,8 @@ type Metric = {
   metric: string; label: string; value: number; unit: string; concept: string;
   periodStart: string | null; periodEnd: string; fiscalYear: number | null;
   fiscalPeriod: string | null; form: string; filedAt: string; accessionNumber: string;
-  filingUrl: string; dataStatus: string; caveat: string;
+  filingUrl: string; dataStatus: string; verificationLevel?: string;
+  verificationBasis?: string; caveat: string;
 } | null;
 type ResearchPayload = {
   source: string; companyName: string | null; cik: string; sourceUrl: string;
