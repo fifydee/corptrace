@@ -27,11 +27,15 @@ Include identity, ticker, country of incorporation, headquarters, founding year,
 
 ## 8. Configurable research
 Users select one company and one or more categories:
-- Overview: history, headquarters, operations, products and services.
-- Financial: financial summary, revenue, expenses, operating costs, profitability, margins, debt, financial position, dividends and buybacks.
-- People: employee count, workforce geography, leadership and compensation.
-- Strategy: R&D, AI investment, capital expenditure, acquisitions, mergers and industry positioning.
+- Company profile: history, headquarters, registered locations, operating regions/countries, offices/facilities, products and services, business segments and revenue mix.
+- Financial performance: financial summary, revenue, expenses, operating costs, profitability, margins, debt, financial position, dividends and buybacks.
+- People and leadership: employee count, workforce geography/nationalities where disclosed, leadership and compensation.
+- Products and strategy: product/service performance, product-level profitability where explicitly disclosed or defensibly derivable, R&D, AI investment, capital expenditure, acquisitions, mergers and industry positioning.
 - Risk/developments: disclosed risks, regulation, legal proceedings, disputes, controversies and recent news.
+- Users can select any combination of topics. The generated report includes only selected sections, with source links and explicit verified/estimated/unavailable states for material facts.
+- Distinguish operating geography, revenue geography, employee work locations and employee nationalities; these are different measures.
+- Never infer an office count from a list of countries or infer employee nationalities from workforce locations.
+- If only segment-level revenue or operating profit is disclosed, label it as segment performance—not product-level profitability. Do not rank products by profitability unless the filing provides sufficient product-level profit data or a clearly disclosed, defensible allocation method.
 
 ## 9. Comparison
 Support two- and three-company comparisons with selectable categories: profiles, financial summaries, revenue, profit, segments, margins, debt, products, employees, workforce distribution, geography, investment, acquisitions, risks and SWOT. Align reporting periods and disclose accounting, fiscal-year, currency and availability differences.
