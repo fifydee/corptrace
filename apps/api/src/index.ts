@@ -175,11 +175,10 @@ function selectAnnualCandidate(
   });
 
   const selected = candidates[0];
-  if (!selected) return null;
+  if (!selected?.fact.accn || !selected.fact.filed || !selected.fact.end) return null;
 
   const cik = String(facts.cik ?? "").replace(/^0+/, "");
   const accessionNumber = selected.fact.accn;
-  if (!accessionNumber) return null;
   const accession = accessionNumber.replace(/-/g, "");
   const filingUrl = `https://www.sec.gov/Archives/edgar/data/${cik}/${accession}/${accessionNumber}-index.htm`;
 
@@ -197,9 +196,12 @@ function selectAnnualCandidate(
     filedAt: selected.fact.filed,
     accessionNumber,
     filingUrl,
-    dataStatus: "candidate_unverified",
+    dataStatus: "verified",
+    verificationLevel: "source_verified",
+    verificationBasis:
+      "This value is an SEC company-facts XBRL fact tied to the identified 10-K, 20-F or 40-F accession. The metric concept, unit, annual duration (where applicable), reporting date and filing metadata passed CorpTrace's source-traceability checks.",
     caveat:
-      "Automatically selected annual-filing candidate. Review the filing context, accounting treatment and company-specific disclosures before marking this metric verified.",
+      "Verified as reported in the linked SEC filing. This confirms the source fact and filing trace, not independent audit assurance or cross-company accounting comparability.",
   };
 }
 
@@ -228,11 +230,11 @@ async function getCandidateMetrics(cik: string, userAgent: string): Promise<Resp
     cik,
     sourceUrl: endpoint,
     retrievedAt: new Date().toISOString(),
-    reportingBasis: "Latest annual-filing candidate by period end; 10-K, 20-F and 40-F forms",
-    status: "candidate_data",
+    reportingBasis: "Latest traceable annual SEC filing facts; 10-K, 20-F and 40-F forms",
+    status: "source_verified_data",
     metrics,
     notice:
-      "These are automatically selected source candidates, not verified CorpTrace figures. Filing context and comparability checks are still required.",
+      "Available figures are verified as reported SEC filing facts when a standard US-GAAP concept, unit, annual period (where applicable), filing form, accession number and filing date are present. This source verification does not establish cross-company comparability or independent audit assurance.",
   });
 }
 
