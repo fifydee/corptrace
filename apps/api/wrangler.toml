@@ -4,3 +4,4 @@ compatibility_date = "2026-11-24"
 
 [vars]
 APP_ENV = "development"
+SEC_USER_AGENT = "CorpTrace/0.1 (corptrace@protonmail.com)"
