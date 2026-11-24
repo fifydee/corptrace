@@ -16,7 +16,7 @@ const json = (data: unknown, status = 200): Response =>
   });
 
 function normaliseCik(input: string): string | null {
-  if (!/^\\d{1,10}$/.test(input)) return null;
+  if (!/^\d{1,10}$/.test(input)) return null;
   return input.padStart(10, "0");
 }
 
@@ -93,7 +93,7 @@ export default {
     }
 
     const secMatch = url.pathname.match(
-      /^\\/sec\\/company\\/([^/]+)\\/(submissions|facts)$/,
+      /^\/sec\/company\/([^/]+)\/(submissions|facts)$/,
     );
 
     if (secMatch) {
@@ -105,7 +105,7 @@ export default {
         );
       }
 
-      if (!env.SEC_USER_AGENT || !/\\S+\\s+\\S+/.test(env.SEC_USER_AGENT)) {
+      if (!env.SEC_USER_AGENT || !/\S+\\s+\S+/.test(env.SEC_USER_AGENT)) {
         return json(
           {
             error: "SEC_USER_AGENT is not configured.",
