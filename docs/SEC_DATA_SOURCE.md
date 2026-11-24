@@ -34,3 +34,20 @@ Do not populate the public top-ten ranking from unvalidated tags or calendar-yea
 ## Current status
 
 This is a source and integration plan, not a live data integration. No SEC requests or financial facts are currently wired into the application.
+
+## API routes now scaffolded
+
+The Worker exposes these GET routes:
+- `/health`
+- `/sec/company/{cik}/submissions`
+- `/sec/company/{cik}/facts`
+
+Both SEC routes require the `SEC_USER_AGENT` environment value. It must identify CorpTrace and include a real contact address approved by the project owner. For local development, place it in `apps/api/.dev.vars` (this file is git-ignored):
+
+```text
+SEC_USER_AGENT="CorpTrace research contact: approved-email@example.com"
+```
+
+Replace the example with a real address before making requests. For deployment, configure the equivalent Worker secret through Wrangler. Never commit the contact value or any credentials.
+
+These routes return raw SEC JSON with source URL and retrieval timestamp. They are deliberately not a financial-fact selection engine. The next layer must interpret filing accessions, taxonomy concepts, units, durations and dimensions before a metric can be labelled verified.
