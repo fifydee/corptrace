@@ -77,6 +77,160 @@ async function fetchSecResource(
   });
 }
 
+
+type SecFactUnit = {
+  val: number;
+  end: string;
+  fy?: number;
+  fp?: string;
+  form?: string;
+  filed?: string;
+  accn?: string;
+  frame?: string;
+  start?: string;
+};
+
+type SecCompanyFacts = {
+  entityName?: string;
+  cik?: number;
+  facts?: Record<string, {
+    [concept: string]: {
+      label?: string;
+      units?: Record<string, SecFactUnit[]>;
+    };
+  }>;
+};
+
+const metricConcepts = [
+  {
+    key: "revenue",
+    label: "Revenue",
+    concepts: [
+      "RevenueFromContractWithCustomerExcludingAssessedTax",
+      "SalesRevenueNet",
+      "Revenues",
+    ],
+    duration: true,
+  },
+  {
+    key: "netIncome",
+    label: "Net income",
+    concepts: ["NetIncomeLoss", "ProfitLoss"],
+    duration: true,
+  },
+  {
+    key: "operatingIncome",
+    label: "Operating income",
+    concepts: ["OperatingIncomeLoss"],
+    duration: true,
+  },
+  { key: "totalAssets", label: "Total assets", concepts: ["Assets"], duration: false },
+  {
+    key: "totalLiabilities",
+    label: "Total liabilities",
+    concepts: ["Liabilities"],
+    duration: false,
+  },
+  {
+    key: "operatingCashFlow",
+    label: "Operating cash flow",
+    concepts: ["NetCashProvidedByUsedInOperatingActivities"],
+    duration: true,
+  },
+] as const;
+
+function selectAnnualCandidate(
+  facts: SecCompanyFacts,
+  metric: (typeof metricConcepts)[number],
+) {
+  const gaap = facts.facts?.["us-gaap"] ?? {};
+  const candidates: Array<{ concept: string; unit: string; fact: SecFactUnit }> = [];
+
+  for (const concept of metric.concepts) {
+    const units = gaap[concept]?.units ?? {};
+    for (const [unit, entries] of Object.entries(units)) {
+      for (const fact of entries) {
+        if (!["10-K", "20-F", "40-F"].includes(fact.form ?? "")) continue;
+        if (!fact.end || !fact.filed || !fact.accn) continue;
+        if (metric.duration) {
+          if (!fact.start) continue;
+          const durationDays =
+            (Date.parse(fact.end) - Date.parse(fact.start)) / 86_400_000;
+          if (durationDays < 330 || durationDays > 380) continue;
+        } else if (fact.start) {
+          continue;
+        }
+        candidates.push({ concept, unit, fact });
+      }
+    }
+  }
+
+  candidates.sort((a, b) => {
+    const byEnd = b.fact.end.localeCompare(a.fact.end);
+    if (byEnd !== 0) return byEnd;
+    return (b.fact.filed ?? "").localeCompare(a.fact.filed ?? "");
+  });
+
+  const selected = candidates[0];
+  if (!selected) return null;
+
+  const cik = String(facts.cik ?? "").replace(/^0+/, "");
+  const accession = selected.fact.accn.replace(/-/g, "");
+  const filingUrl = `https://www.sec.gov/Archives/edgar/data/${cik}/${accession}/${selected.fact.accn}-index.htm`;
+
+  return {
+    metric: metric.key,
+    label: metric.label,
+    value: selected.fact.val,
+    unit: selected.unit,
+    concept: selected.concept,
+    periodStart: selected.fact.start ?? null,
+    periodEnd: selected.fact.end,
+    fiscalYear: selected.fact.fy ?? null,
+    fiscalPeriod: selected.fact.fp ?? null,
+    form: selected.fact.form,
+    filedAt: selected.fact.filed,
+    accessionNumber: selected.fact.accn,
+    filingUrl,
+    dataStatus: "candidate_unverified",
+    caveat:
+      "Automatically selected annual-filing candidate. Review the filing context, accounting treatment and company-specific disclosures before marking this metric verified.",
+  };
+}
+
+async function getCandidateMetrics(cik: string, userAgent: string): Promise<Response> {
+  const endpoint = `https://data.sec.gov/api/xbrl/companyfacts/CIK${cik}.json`;
+  let upstream: Response;
+  try {
+    upstream = await fetch(endpoint, {
+      headers: { "User-Agent": userAgent, Accept: "application/json" },
+    });
+  } catch {
+    return json({ error: "The SEC data service could not be reached.", sourceUrl: endpoint }, 502);
+  }
+  if (!upstream.ok) {
+    return json(
+      { error: "The SEC data service returned an unsuccessful response.", upstreamStatus: upstream.status, sourceUrl: endpoint },
+      upstream.status === 404 ? 404 : 502,
+    );
+  }
+
+  const facts = (await upstream.json()) as SecCompanyFacts;
+  const metrics = metricConcepts.map((metric) => selectAnnualCandidate(facts, metric));
+  return json({
+    source: "SEC EDGAR company facts",
+    companyName: facts.entityName ?? null,
+    cik,
+    sourceUrl: endpoint,
+    retrievedAt: new Date().toISOString(),
+    reportingBasis: "Latest annual-filing candidate by period end; 10-K, 20-F and 40-F forms",
+    status: "candidate_data",
+    metrics,
+    notice:
+      "These are automatically selected source candidates, not verified CorpTrace figures. Filing context and comparability checks are still required.",
+  });
+}
+
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
     const url = new URL(request.url);
@@ -133,6 +287,21 @@ export default {
       });
     }
 
+
+    const metricsMatch = url.pathname.match(
+      /^\\/sec\\/company\\/([^/]+)\\/metrics$/,
+    );
+    if (metricsMatch) {
+      const cik = normaliseCik(metricsMatch[1]);
+      if (!cik) {
+        return json({ error: "Invalid CIK. Supply between 1 and 10 digits." }, 400);
+      }
+      if (!env.SEC_USER_AGENT || !/\\S+\\s+\\S+/.test(env.SEC_USER_AGENT)) {
+        return json({ error: "SEC_USER_AGENT is not configured." }, 503);
+      }
+      return getCandidateMetrics(cik, env.SEC_USER_AGENT);
+    }
+
     const secMatch = url.pathname.match(
       /^\/sec\/company\/([^/]+)\/(submissions|facts)$/,
     );
@@ -168,6 +337,7 @@ export default {
           "/sec/lookup?q={ticker-or-company-name}",
           "/sec/company/{cik}/submissions",
           "/sec/company/{cik}/facts",
+          "/sec/company/{cik}/metrics",
         ],
       },
       404,
