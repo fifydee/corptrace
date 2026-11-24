@@ -12,6 +12,9 @@ const json = (data: unknown, status = 200): Response =>
       "content-type": "application/json; charset=utf-8",
       "cache-control": "no-store",
       "x-content-type-options": "nosniff",
+      "access-control-allow-origin": "*",
+      "access-control-allow-methods": "GET, OPTIONS",
+      "access-control-allow-headers": "Content-Type",
     },
   });
 
@@ -234,6 +237,15 @@ async function getCandidateMetrics(cik: string, userAgent: string): Promise<Resp
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
     const url = new URL(request.url);
+
+    if (request.method === "OPTIONS") {
+      return new Response(null, { status: 204, headers: {
+        "access-control-allow-origin": "*",
+        "access-control-allow-methods": "GET, OPTIONS",
+        "access-control-allow-headers": "Content-Type",
+        "access-control-max-age": "86400",
+      }});
+    }
 
     if (request.method !== "GET") {
       return json({ error: "Method not allowed" }, 405);
