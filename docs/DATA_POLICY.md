@@ -19,6 +19,11 @@
 - Do not confuse revenue, net income, operating income, market capitalisation or cash flow.
 - Do not conflate fiscal periods or reporting currencies.
 - Identify consolidated vs segment values.
+- Distinguish company headquarters, registered offices, operating locations, revenue geography, employee work locations and employee nationalities. Do not treat these as interchangeable.
+- Report office/facility counts only when the company explicitly discloses a count and its scope/date.
+- Report workforce nationalities only when explicitly disclosed; employee location does not establish nationality.
+- Treat segment revenue/profit as segment-level performance. Do not label it product-level profitability unless the company discloses product-level profit or a defensible, transparent allocation is possible.
+- When a requested item is absent from the filing, mark it unavailable in that source/report rather than estimating without a defensible method.
 - Distinguish reported employee totals from estimated workforce geography.
 - Separate company-disclosed risks from independent analysis.
 - Distinguish allegations, investigations, filed proceedings, settlements and court/regulatory findings.
