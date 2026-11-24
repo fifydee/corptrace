@@ -40,3 +40,10 @@ npm run dev
 ## Data integrity
 
 The initial interface may contain demonstration records to show layout and interactions. These are not live financial research. Official filings and company disclosures will be integrated in subsequent milestones. API keys must never be committed to GitHub or exposed in browser code.
+
+
+## Current live-preview scope
+
+The web application now connects to the SEC-backed API for registrant lookup, company filing history and first-pass annual financial fact candidates. Configure `VITE_API_BASE_URL` to the deployed Worker origin when building the frontend. See [Deployment](docs/DEPLOYMENT.md).
+
+Candidate values are not verified financial results. The current selector is a first-pass research aid and does not yet replace a filing review. The app does not yet provide a verified global top-ten profitability ranking, news monitoring, or live comparison analysis.
