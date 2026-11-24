@@ -45,7 +45,7 @@ function App() {
   const [researchLoading, setResearchLoading] = useState(false);
   const [researchError, setResearchError] = useState("");
   const [mobile, setMobile] = useState(false);
-  const [picked, setPicked] = useState(["Financial summary", "Revenue and income sources", "SWOT analysis"]);
+  const [picked, setPicked] = useState(["Company overview", "Headquarters and operating regions", "Products and services", "Financial summary", "Revenue and income sources", "Employee count and workforce"]);
 
   const demoMatches = useMemo(() => companies.filter(c => c.join(" ").toLowerCase().includes(query.toLowerCase())), [query]);
 
@@ -85,12 +85,15 @@ function App() {
 
   const nav: Page[] = ["Explore", "Directory", "Research", "Compare", "Developments"];
   const categories = [
-    ["Company overview", "Profile and history", "Headquarters and operations", "Products and services"],
-    ["Financial information", "Financial summary", "Revenue and income sources", "Expenses and operating costs", "Profitability and margins", "Debt and financial position"],
-    ["People", "Employee count and workforce distribution", "Leadership and compensation"],
-    ["Strategy and competition", "Investment and R&D", "Acquisitions and mergers", "SWOT analysis"],
-    ["Risk and developments", "Risk factors", "Legal cases and disputes", "Scandals and controversies", "Recent company news"],
+    { group: "Company profile", items: ["Company overview and history", "Headquarters and registered locations", "Operating regions and countries", "Offices and facilities", "Products and services", "Business segments and revenue mix"] },
+    { group: "Financial performance", items: ["Financial summary", "Revenue and income sources", "Expenses and operating costs", "Profitability and margins", "Debt and financial position", "Dividends and share buybacks"] },
+    { group: "People and leadership", items: ["Employee count and workforce", "Employee geography and nationalities", "Leadership and compensation"] },
+    { group: "Products, strategy and investment", items: ["Product and service performance", "Most profitable products or services", "Investment, R&D and AI", "Acquisitions and mergers", "SWOT analysis"] },
+    { group: "Risk and developments", items: ["Risk factors", "Legal cases and disputes", "Regulatory matters and controversies", "Recent company news"] },
   ];
+  const toggleResearchItem = (item: string) => setPicked(current =>
+    current.includes(item) ? current.filter(value => value !== item) : [...current, item]
+  );
 
   return <div className="shell">
     <header>
@@ -115,14 +118,21 @@ function App() {
 
     {page === "Research" && <main className="workspace"><button className="back" onClick={() => setPage("Directory")}><ArrowLeft size={14}/> Company search</button><label>COMPANY RESEARCH</label><h1>{company ? company.companyName : "Look beyond"}<br/><em>{company ? "Filing research" : "the headline numbers."}</em></h1>
       {!company && <><p>Search the SEC directory to open a company research page.</p><button className="primary" onClick={() => setPage("Directory")}>Find a company</button></>}
-      {company && <><div className="company-meta"><span>CIK {company.cik}</span><span>{company.ticker ?? "Ticker not supplied"}</span><span>SEC EDGAR</span></div>
+      {company && <>
+        <section className="research-picker">
+          <div className="picker-heading"><div><label>BUILD YOUR COMPANY REPORT</label><h2>What would you like to know?</h2><p>Select as many topics as you need. CorpTrace will organise the report around your choices and identify information that the company does not disclose.</p></div><span>{picked.length} selected</span></div>
+          <div className="picker-groups">{categories.map(category=><fieldset key={category.group}><legend>{category.group}</legend><div>{category.items.map(item=><label key={item} className="research-option"><input type="checkbox" checked={picked.includes(item)} onChange={()=>toggleResearchItem(item)}/><span>{item}</span></label>)}</div></fieldset>)}</div>
+          <div className="picker-note"><ShieldCheck size={16}/><span>Figures and claims will retain their filing/report source. Employee nationalities, office counts and product-level profitability are only reported when the company provides enough detail to support them.</span></div>
+        </section>
+        <div className="company-meta"><span>CIK {company.cik}</span><span>{company.ticker ?? "Ticker not supplied"}</span><span>SEC EDGAR</span></div>
         {researchLoading && <div className="notice"><LoaderCircle className="spin"/> Retrieving SEC company facts and filing history…</div>}
         {researchError && <div className="notice warning"><CircleAlert/>{researchError}</div>}
-        {metrics && <><div className="source-banner"><CheckCircle2 size={18}/><span><b>Live SEC source response received</b><small>Retrieved {new Date(metrics.retrievedAt).toLocaleString()} · {metrics.reportingBasis}</small></span><a href={metrics.sourceUrl} target="_blank" rel="noreferrer">Open source <ArrowUpRight size={13}/></a></div>
+        {metrics && picked.some(item => ["Financial summary","Revenue and income sources","Expenses and operating costs","Profitability and margins","Debt and financial position","Dividends and share buybacks"].includes(item)) && <><div className="source-banner"><CheckCircle2 size={18}/><span><b>Live SEC source response received</b><small>Retrieved {new Date(metrics.retrievedAt).toLocaleString()} · {metrics.reportingBasis}</small></span><a href={metrics.sourceUrl} target="_blank" rel="noreferrer">Open source <ArrowUpRight size={13}/></a></div>
           <div className="notice"><ShieldCheck size={17}/>{metrics.notice}</div>
           <h2>SEC-reported financial metrics</h2><p>Each available figure below is traceable to an identified SEC filing and is verified as reported by the company. Comparability across companies and accounting treatments is assessed separately.</p>
           <div className="metric-grid">{metrics.metrics.map((m,i)=><article key={m?.metric ?? i} className="metric-card"><small>{m?.label ?? "Metric unavailable"}</small>{m ? <><strong>{money(m.value,m.unit)}</strong><span>{m.periodStart ? `${m.periodStart} to ${m.periodEnd}` : `As at ${m.periodEnd}`}</span><span>{m.form} · Filed {m.filedAt}</span><a href={m.filingUrl} target="_blank" rel="noreferrer">View official SEC filing <ArrowUpRight size={13}/></a><em className="verified-label"><ShieldCheck size={13}/> Verified · SEC-reported</em><small>{m.verificationBasis}</small></> : <><strong>Unavailable</strong><span>No matching standard US-GAAP annual fact found.</span></>}</article>)}</div>
         </>}
+        {picked.some(item => !["Financial summary","Revenue and income sources","Expenses and operating costs","Profitability and margins","Debt and financial position","Dividends and share buybacks"].includes(item)) && <section className="research-followup"><h2>Your selected company research</h2><p>These topics are part of the configurable report. The current live connector is still limited to structured SEC financial facts and filing metadata; narrative extraction from 10-K and annual-report sections is the next implementation step.</p><div className="selected-topics">{picked.filter(item=>!["Financial summary","Revenue and income sources","Expenses and operating costs","Profitability and margins","Debt and financial position","Dividends and share buybacks"].includes(item)).map(item=><div key={item}><span>{item}</span><small>Selected · filing extraction to be connected</small></div>)}</div></section>}
         {filings && <><h2>Recent filing history</h2><p>Recent SEC submissions for {filings.data.name ?? company.companyName}.</p><div className="filing-list">{(filings.data.filings?.recent?.form ?? []).map((form,i)=>({form,date:filings.data.filings?.recent?.filingDate?.[i] ?? "",report:filings.data.filings?.recent?.reportDate?.[i] ?? "",accession:filings.data.filings?.recent?.accessionNumber?.[i] ?? "",doc:filings.data.filings?.recent?.primaryDocument?.[i] ?? ""})).filter(x=>["10-K","20-F","40-F","10-Q","8-K"].includes(x.form)).slice(0,12).map((f,i)=>{const cik=company.cik.replace(/^0+/,"");const accession=f.accession.replace(/-/g,"");const url=`https://www.sec.gov/Archives/edgar/data/${cik}/${accession}/${f.doc}`;return <a key={f.accession+i} href={url} target="_blank" rel="noreferrer"><FileText size={17}/><span><b>{f.form}</b><small>Filed {f.date} · Reporting date {f.report || "not supplied"}</small></span><ArrowUpRight size={14}/></a>})}</div></>}
       </>}
     </main>}
