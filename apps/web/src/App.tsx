@@ -25,6 +25,11 @@ type FilingPayload = {
     recent?: { form?: string[]; filingDate?: string[]; reportDate?: string[]; accessionNumber?: string[]; primaryDocument?: string[] };
   } };
 };
+type NarrativeResearch = {
+  source: string; form: string; filedAt: string; reportDate: string;
+  documentUrl: string; retrievedAt: string; notice: string;
+  sections: { key: string; title: string; content: string | null; dataStatus: string; note: string }[];
+};
 
 const API_BASE = (import.meta.env.VITE_API_BASE_URL ?? "").replace(/\/$/, "");
 const apiUrl = (path: string) => `${API_BASE}${path}`;
@@ -42,6 +47,7 @@ function App() {
   const [lookupError, setLookupError] = useState("");
   const [metrics, setMetrics] = useState<ResearchPayload | null>(null);
   const [filings, setFilings] = useState<FilingPayload | null>(null);
+  const [narrative, setNarrative] = useState<NarrativeResearch | null>(null);
   const [researchLoading, setResearchLoading] = useState(false);
   const [researchError, setResearchError] = useState("");
   const [mobile, setMobile] = useState(false);
@@ -66,18 +72,21 @@ function App() {
   }, [query]);
 
   async function openCompany(item: Company) {
-    setCompany(item); setPage("Research"); setMetrics(null); setFilings(null);
+    setCompany(item); setPage("Research"); setMetrics(null); setFilings(null); setNarrative(null);
     setResearchError(""); setResearchLoading(true);
     try {
-      const [metricResponse, filingResponse] = await Promise.all([
+      const [metricResponse, filingResponse, narrativeResponse] = await Promise.all([
         fetch(apiUrl(`/sec/company/${item.cik}/metrics`)),
         fetch(apiUrl(`/sec/company/${item.cik}/submissions`)),
+        fetch(apiUrl(`/sec/company/${item.cik}/research`)),
       ]);
       const metricBody = await metricResponse.json();
       const filingBody = await filingResponse.json();
+      const narrativeBody = await narrativeResponse.json();
       if (!metricResponse.ok) throw new Error(metricBody.error ?? "Could not retrieve company facts.");
       if (!filingResponse.ok) throw new Error(filingBody.error ?? "Could not retrieve filing history.");
       setMetrics(metricBody); setFilings(filingBody);
+      if (narrativeResponse.ok) setNarrative(narrativeBody);
     } catch (error) {
       setResearchError(error instanceof Error ? error.message : "Research request failed.");
     } finally { setResearchLoading(false); }
@@ -132,7 +141,15 @@ function App() {
           <h2>SEC-reported financial metrics</h2><p>Each available figure below is traceable to an identified SEC filing and is verified as reported by the company. Comparability across companies and accounting treatments is assessed separately.</p>
           <div className="metric-grid">{metrics.metrics.map((m,i)=><article key={m?.metric ?? i} className="metric-card"><small>{m?.label ?? "Metric unavailable"}</small>{m ? <><strong>{money(m.value,m.unit)}</strong><span>{m.periodStart ? `${m.periodStart} to ${m.periodEnd}` : `As at ${m.periodEnd}`}</span><span>{m.form} · Filed {m.filedAt}</span><a href={m.filingUrl} target="_blank" rel="noreferrer">View official SEC filing <ArrowUpRight size={13}/></a><em className="verified-label"><ShieldCheck size={13}/> Verified · SEC-reported</em><small>{m.verificationBasis}</small></> : <><strong>Unavailable</strong><span>No matching standard US-GAAP annual fact found.</span></>}</article>)}</div>
         </>}
-        {picked.some(item => !["Financial summary","Revenue and income sources","Expenses and operating costs","Profitability and margins","Debt and financial position","Dividends and share buybacks"].includes(item)) && <section className="research-followup"><h2>Your selected company research</h2><p>These topics are part of the configurable report. The current live connector is still limited to structured SEC financial facts and filing metadata; narrative extraction from 10-K and annual-report sections is the next implementation step.</p><div className="selected-topics">{picked.filter(item=>!["Financial summary","Revenue and income sources","Expenses and operating costs","Profitability and margins","Debt and financial position","Dividends and share buybacks"].includes(item)).map(item=><div key={item}><span>{item}</span><small>Selected · filing extraction to be connected</small></div>)}</div></section>}
+        {narrative && <section className="filing-research"><div className="filing-research-head"><div><label>ANNUAL REPORT EXPLORER</label><h2>What the filing says about the business</h2><p>{narrative.form} · Filed {narrative.filedAt} · Reporting date {narrative.reportDate || "not supplied"}</p></div><a href={narrative.documentUrl} target="_blank" rel="noreferrer">Open complete filing <ArrowUpRight size={13}/></a></div><div className="extraction-note"><ShieldCheck size={16}/>{narrative.notice}</div><div className="filing-sections">{narrative.sections.filter(section => {
+          const selection = picked.join(" ").toLowerCase();
+          if (section.key === "risk") return selection.includes("risk");
+          if (section.key === "legal") return selection.includes("legal") || selection.includes("regulatory");
+          if (section.key === "management") return selection.includes("financial") || selection.includes("revenue") || selection.includes("profitability") || selection.includes("expenses");
+          if (section.key === "business") return selection.includes("company") || selection.includes("headquarters") || selection.includes("operating") || selection.includes("products") || selection.includes("offices") || selection.includes("employee") || selection.includes("workforce") || selection.includes("segment") || selection.includes("strategy") || selection.includes("investment") || selection.includes("acquisition") || selection.includes("swot");
+          return false;
+        }).map(section=><article key={section.key}><div><h3>{section.title}</h3><span className={section.dataStatus === "candidate" ? "extraction-status" : "unavailable-status"}>{section.dataStatus === "candidate" ? "Extracted · review required" : "Unavailable"}</span></div>{section.content ? <p>{section.content}</p> : <p className="empty-section">{section.note}</p>}<small>Source: {narrative.form} · <a href={narrative.documentUrl} target="_blank" rel="noreferrer">SEC filing</a></small></article>)}</div></section>}
+        {picked.some(item => !["Financial summary","Revenue and income sources","Expenses and operating costs","Profitability and margins","Debt and financial position","Dividends and share buybacks"].includes(item)) && !narrative && <section className="research-followup"><h2>Your selected company research</h2><p>These topics are part of the configurable report. The latest annual filing could not be extracted automatically. You can still open the official filing below; the extraction service will report unavailable rather than inventing company details.</p><div className="selected-topics">{picked.filter(item=>!["Financial summary","Revenue and income sources","Expenses and operating costs","Profitability and margins","Debt and financial position","Dividends and share buybacks"].includes(item)).map(item=><div key={item}><span>{item}</span><small>Selected · filing extraction to be connected</small></div>)}</div></section>}
         {filings && <><h2>Recent filing history</h2><p>Recent SEC submissions for {filings.data.name ?? company.companyName}.</p><div className="filing-list">{(filings.data.filings?.recent?.form ?? []).map((form,i)=>({form,date:filings.data.filings?.recent?.filingDate?.[i] ?? "",report:filings.data.filings?.recent?.reportDate?.[i] ?? "",accession:filings.data.filings?.recent?.accessionNumber?.[i] ?? "",doc:filings.data.filings?.recent?.primaryDocument?.[i] ?? ""})).filter(x=>["10-K","20-F","40-F","10-Q","8-K"].includes(x.form)).slice(0,12).map((f,i)=>{const cik=company.cik.replace(/^0+/,"");const accession=f.accession.replace(/-/g,"");const url=`https://www.sec.gov/Archives/edgar/data/${cik}/${accession}/${f.doc}`;return <a key={f.accession+i} href={url} target="_blank" rel="noreferrer"><FileText size={17}/><span><b>{f.form}</b><small>Filed {f.date} · Reporting date {f.report || "not supplied"}</small></span><ArrowUpRight size={14}/></a>})}</div></>}
       </>}
     </main>}
