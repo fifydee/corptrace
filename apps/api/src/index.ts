@@ -178,8 +178,10 @@ function selectAnnualCandidate(
   if (!selected) return null;
 
   const cik = String(facts.cik ?? "").replace(/^0+/, "");
-  const accession = selected.fact.accn.replace(/-/g, "");
-  const filingUrl = `https://www.sec.gov/Archives/edgar/data/${cik}/${accession}/${selected.fact.accn}-index.htm`;
+  const accessionNumber = selected.fact.accn;
+  if (!accessionNumber) return null;
+  const accession = accessionNumber.replace(/-/g, "");
+  const filingUrl = `https://www.sec.gov/Archives/edgar/data/${cik}/${accession}/${accessionNumber}-index.htm`;
 
   return {
     metric: metric.key,
@@ -193,7 +195,7 @@ function selectAnnualCandidate(
     fiscalPeriod: selected.fact.fp ?? null,
     form: selected.fact.form,
     filedAt: selected.fact.filed,
-    accessionNumber: selected.fact.accn,
+    accessionNumber,
     filingUrl,
     dataStatus: "candidate_unverified",
     caveat:
