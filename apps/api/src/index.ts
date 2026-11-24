@@ -250,16 +250,16 @@ type SubmissionPayload = {
   filings?: { recent?: FilingRecent };
 };
 const filingTopics = [
-  { key: "business", title: "Business overview, products and operating footprint", patterns: [/ITEM\\s+1[.\\s]+BUSINESS/i, /ITEM\\s+1[.\\s]+DESCRIPTION OF BUSINESS/i] },
-  { key: "risk", title: "Risk factors", patterns: [/ITEM\\s+1A[.\\s]+RISK FACTORS/i] },
-  { key: "legal", title: "Legal proceedings", patterns: [/ITEM\\s+3[.\\s]+LEGAL PROCEEDINGS/i] },
-  { key: "management", title: "Management discussion and financial performance", patterns: [/ITEM\\s+7[.\\s]+MANAGEMENT[’']?S?\\s+DISCUSSION/i, /ITEM\\s+7[.\\s]+MANAGEMENT’S DISCUSSION/i] },
-  { key: "controls", title: "Controls and procedures", patterns: [/ITEM\\s+9A[.\\s]+CONTROLS/i] },
+  { key: "business", title: "Business overview, products and operating footprint", patterns: [/ITEM\s+1[.\s]+BUSINESS/i, /ITEM\s+1[.\s]+DESCRIPTION OF BUSINESS/i] },
+  { key: "risk", title: "Risk factors", patterns: [/ITEM\s+1A[.\s]+RISK FACTORS/i] },
+  { key: "legal", title: "Legal proceedings", patterns: [/ITEM\s+3[.\s]+LEGAL PROCEEDINGS/i] },
+  { key: "management", title: "Management discussion and financial performance", patterns: [/ITEM\s+7[.\s]+MANAGEMENT[’']?S?\s+DISCUSSION/i, /ITEM\s+7[.\s]+MANAGEMENT’S DISCUSSION/i] },
+  { key: "controls", title: "Controls and procedures", patterns: [/ITEM\s+9A[.\s]+CONTROLS/i] },
 ];
 function cleanFilingText(html: string): string {
   return html
-    .replace(/<script[\\s\\S]*?<\\/script>/gi, " ")
-    .replace(/<style[\\s\\S]*?<\\/style>/gi, " ")
+    .replace(/<script[\s\S]*?<\/script>/gi, " ")
+    .replace(/<style[\s\S]*?<\/style>/gi, " ")
     .replace(/<[^>]+>/g, " ")
     .replace(/&nbsp;|&#160;/gi, " ")
     .replace(/&amp;/gi, "&")
@@ -267,7 +267,7 @@ function cleanFilingText(html: string): string {
     .replace(/&#39;|&apos;/gi, "'")
     .replace(/&lt;/gi, "<")
     .replace(/&gt;/gi, ">")
-    .replace(/\\s+/g, " ")
+    .replace(/\s+/g, " ")
     .trim();
 }
 function extractItemSection(text: string, patterns: RegExp[]): string | null {
@@ -278,8 +278,8 @@ function extractItemSection(text: string, patterns: RegExp[]): string | null {
   }
   if (start < 0) return null;
   const tail = text.slice(start);
-  const nextItem = /\\bITEM\\s+(?:1B|1C|2|3|4|5|6|7|7A|7B|8|9|9A|9B|9C|10|11|12|13|14|15)[.\\s]+/gi;
-  nextItem.lastIndex = Math.max(1, tail.search(/\\bITEM\\s+/i) + 5);
+  const nextItem = /\bITEM\s+(?:1B|1C|2|3|4|5|6|7|7A|7B|8|9|9A|9B|9C|10|11|12|13|14|15)[.\s]+/gi;
+  nextItem.lastIndex = Math.max(1, tail.search(/\bITEM\s+/i) + 5);
   const next = nextItem.exec(tail);
   const section = (next ? tail.slice(0, next.index) : tail).trim();
   return section.slice(0, 14000) || null;
@@ -406,7 +406,7 @@ export default {
     if (researchMatch) {
       const cik = normaliseCik(researchMatch[1]);
       if (!cik) return json({ error: "Invalid CIK. Supply between 1 and 10 digits." }, 400);
-      if (!env.SEC_USER_AGENT || !/\\S+\\s+\\S+/.test(env.SEC_USER_AGENT)) return json({ error: "SEC_USER_AGENT is not configured." }, 503);
+      if (!env.SEC_USER_AGENT || !/\S+\s+\S+/.test(env.SEC_USER_AGENT)) return json({ error: "SEC_USER_AGENT is not configured." }, 503);
       return getCompanyResearch(cik, env.SEC_USER_AGENT);
     }
 
