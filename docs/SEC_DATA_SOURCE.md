@@ -51,3 +51,7 @@ SEC_USER_AGENT="CorpTrace research contact: approved-email@example.com"
 Replace the example with a real address before making requests. For deployment, configure the equivalent Worker secret through Wrangler. Never commit the contact value or any credentials.
 
 These routes return raw SEC JSON with source URL and retrieval timestamp. They are deliberately not a financial-fact selection engine. The next layer must interpret filing accessions, taxonomy concepts, units, durations and dimensions before a metric can be labelled verified.
+
+## Company identifier lookup
+
+The API also exposes `GET /sec/lookup?q={ticker-or-company-name}`. It searches the SEC company-tickers JSON file and returns up to 20 matching CIK/ticker/registrant-name records. Treat this as candidate discovery only: users and later research workflows must confirm the correct legal entity, especially for similar company names and multiple share classes.
