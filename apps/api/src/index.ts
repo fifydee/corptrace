@@ -105,7 +105,7 @@ export default {
         );
       }
 
-      if (!env.SEC_USER_AGENT || !/\S+\\s+\S+/.test(env.SEC_USER_AGENT)) {
+      if (!env.SEC_USER_AGENT || !/\S+\s+\S+/.test(env.SEC_USER_AGENT)) {
         return json(
           {
             error: "SEC_USER_AGENT is not configured.",
