@@ -18,3 +18,7 @@ Add dated entries after meaningful product decisions, integrations, design itera
 
 ## Field Notes article plan
 Tell the first-person story: the original question; first dashboard; product expansion; audience/accessibility choices; research/data challenges; design and architecture decisions; iterations and trade-offs; lessons; finished capabilities.
+
+
+7. **API and shared data foundations (24 November 2026):** added a Cloudflare Worker API shell with a health endpoint, the first shared domain contracts for companies and sourced financial metrics, repository ignore rules and automated CI checks. This creates a server-side boundary for future data providers and keeps provenance/status fields in the core model from the beginning.
+8. **First data-source decision (24 November 2026):** selected SEC EDGAR submissions and XBRL company-facts APIs as the first research integration candidate. The official SEC documentation confirms public JSON endpoints without API keys, and that data.sec.gov does not support browser CORS. The integration plan therefore keeps retrieval server-side and records the need for a real contact-bearing User-Agent, rate-limit compliance and filing-level validation. No financial data has been connected yet.
