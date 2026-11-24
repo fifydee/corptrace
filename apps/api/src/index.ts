@@ -3,7 +3,7 @@ export interface Env {
   SEC_USER_AGENT?: string;
 }
 
-type SecResource = "submissions" | "facts";
+type SecResource = "lookup" | "submissions" | "facts";
 
 const json = (data: unknown, status = 200): Response =>
   new Response(JSON.stringify(data, null, 2), {
@@ -26,9 +26,11 @@ async function fetchSecResource(
   userAgent: string,
 ): Promise<Response> {
   const endpoint =
-    resource === "submissions"
-      ? `https://data.sec.gov/submissions/CIK${cik}.json`
-      : `https://data.sec.gov/api/xbrl/companyfacts/CIK${cik}.json`;
+    resource === "lookup"
+      ? "https://www.sec.gov/files/company_tickers.json"
+      : resource === "submissions"
+        ? `https://data.sec.gov/submissions/CIK${cik}.json`
+        : `https://data.sec.gov/api/xbrl/companyfacts/CIK${cik}.json`;
 
   let upstream: Response;
   try {
@@ -92,6 +94,45 @@ export default {
       });
     }
 
+    if (url.pathname === "/sec/lookup") {
+      const query = (url.searchParams.get("q") ?? "").trim().toLowerCase();
+      if (query.length < 1 || query.length > 80) {
+        return json({ error: "Supply a search query between 1 and 80 characters." }, 400);
+      }
+      if (!env.SEC_USER_AGENT || !/\\S+\\s+\\S+/.test(env.SEC_USER_AGENT)) {
+        return json({
+          error: "SEC_USER_AGENT is not configured.",
+          guidance: "Set a descriptive application name and a real contact address before using SEC routes.",
+        }, 503);
+      }
+      const response = await fetchSecResource("", "lookup", env.SEC_USER_AGENT);
+      if (!response.ok) return response;
+      const payload = (await response.json()) as {
+        data?: Record<string, { cik_str?: number; ticker?: string; title?: string }>;
+        sourceUrl?: string;
+        retrievedAt?: string;
+      };
+      const matches = Object.values(payload.data ?? {})
+        .filter((item) =>
+          (item.ticker ?? "").toLowerCase() === query ||
+          (item.title ?? "").toLowerCase().includes(query)
+        )
+        .slice(0, 20)
+        .map((item) => ({
+          cik: String(item.cik_str ?? "").padStart(10, "0"),
+          ticker: item.ticker ?? null,
+          companyName: item.title ?? null,
+        }));
+      return json({
+        source: "SEC EDGAR",
+        sourceUrl: payload.sourceUrl,
+        retrievedAt: payload.retrievedAt,
+        query,
+        results: matches,
+        notice: "SEC registrant lookup results; confirm the legal entity before researching it.",
+      });
+    }
+
     const secMatch = url.pathname.match(
       /^\/sec\/company\/([^/]+)\/(submissions|facts)$/,
     );
@@ -124,6 +165,7 @@ export default {
         error: "Not found",
         availableRoutes: [
           "/health",
+          "/sec/lookup?q={ticker-or-company-name}",
           "/sec/company/{cik}/submissions",
           "/sec/company/{cik}/facts",
         ],
