@@ -402,7 +402,7 @@ export default {
     }
 
 
-    const researchMatch = url.pathname.match(/^\\/sec\\/company\\/([^/]+)\\/research$/);
+    const researchMatch = url.pathname.match(/^\/sec\/company\/([^/]+)\/research$/);
     if (researchMatch) {
       const cik = normaliseCik(researchMatch[1]);
       if (!cik) return json({ error: "Invalid CIK. Supply between 1 and 10 digits." }, 400);
