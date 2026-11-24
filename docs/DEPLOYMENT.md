@@ -47,3 +47,6 @@ The candidate selector is a first-pass XBRL filter, not a filing-review system. 
 ## Cost and operational note
 
 Check current Cloudflare plan limits and account settings before production use. This project is designed to start lean, but this guide does not promise unlimited free usage.
+
+
+The deployment workflow intentionally stops if `VITE_API_BASE_URL` is not configured, so the published frontend cannot silently ship with API calls pointed at the Pages origin.
