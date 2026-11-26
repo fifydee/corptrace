@@ -97,12 +97,56 @@ try {
     }));
     await openMicrosoftResearch(page);
     await page.getByRole("button", { name: /Research 1 selected topic/i }).click();
-    await page.getByText("Could not retrieve selected research.", { exact: true }).waitFor({ state: "visible", timeout: 20000 });
-    results.push("research failure state is communicated to the user");
+    await page.getByRole("alert").getByText("Could not retrieve selected research.", { exact: true }).waitFor({ state: "visible", timeout: 20000 });
+    results.push("research failure state is announced accessibly");
     await page.close();
   }
 
-  process.stdout.write(JSON.stringify({ result: "passed", browser: "Chromium", checks: results }) + "\n");
-} finally {
+  {
+    const page = await browser.newPage({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
+    await page.goto(base, { waitUntil: "domcontentloaded" });
+    const menu = page.getByRole("button", { name: "Menu" });
+    await menu.waitFor({ state: "visible" });
+    assert.equal(await menu.getAttribute("aria-expanded"), "false");
+    await menu.click();
+    const close = page.getByRole("button", { name: "Close menu" });
+    assert.equal(await close.getAttribute("aria-expanded"), "true");
+    const nav = page.getByRole("navigation", { name: "Primary navigation" });
+    await nav.getByRole("button", { name: "Company directory" }).click();
+    assert.equal(await page.getByRole("button", { name: "Menu" }).getAttribute("aria-expanded"), "false");
+    await page.getByLabel("Search SEC registrants by company name or ticker").fill("Microsoft");
+    await page.getByRole("heading", { name: "SEC registrant matches" }).waitFor({ state: "visible", timeout: 20000 });
+    const dimensions = await page.evaluate(() => ({
+      viewport: document.documentElement.clientWidth,
+      content: document.documentElement.scrollWidth
+    }));
+    assert.ok(dimensions.content <= dimensions.viewport, `mobile viewport should not overflow horizontally: ${JSON.stringify(dimensions)}`);
+    results.push("mobile menu exposes and updates expanded state", "mobile navigation closes after selection", "mobile search has an accessible label", "390px viewport has no horizontal overflow");
+    await page.close();
+  }
+
+  {
+    const page = await browser.newPage({ viewport: { width: 1280, height: 900 } });
+    await page.goto(base, { waitUntil: "domcontentloaded" });
+    await page.keyboard.press("Tab");
+    const firstFocused = await page.evaluate(() => ({
+      text: document.activeElement?.textContent?.trim(),
+      className: document.activeElement?.className
+    }));
+    assert.match(String(firstFocused.className), /skip-link/, "first keyboard stop should be the skip link");
+    await page.keyboard.press("Enter");
+    assert.equal(await page.locator("#main-content").count(), 1, "skip link target should exist");
+    await page.keyboard.press("Tab");
+    const focusVisible = await page.evaluate(() => {
+      const style = getComputedStyle(document.activeElement);
+      return style.outlineStyle !== "none" && style.outlineWidth !== "0px";
+    });
+    assert.equal(focusVisible, true, "keyboard focus should have a visible outline");
+    results.push("skip-to-main-content works from keyboard", "keyboard focus indicator is visible");
+    await page.close();
+  }
+
+  process.stdout.write(JSON.stringify({ result: "passed", browser: "Chromium", checks: results }) + "\\n");
+} } finally {
   await browser.close();
 }
