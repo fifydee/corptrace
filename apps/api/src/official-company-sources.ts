@@ -71,9 +71,9 @@ export function extractBlocks(html: string): Evidence[] {
 export function extractFacts(sources: CompanySource[]): CompanyFact[] {
   const definitions: Array<{key:string;label:string;re:RegExp}>=[
     {key:"founded",label:"Founded",re:/\b(?:founded|established|incorporated)\s+(?:in\s+)?(?:in\s+)?(?:the year\s+)?(\d{4})\b/i},
-    {key:"headquarters",label:"Headquarters",re:/\\b(?:headquartered\\s+(?:in|at)|headquarters(?:\\s+(?:are|is))?\\s+(?:located\\s+)?(?:in|at)|based\\s+(?:in|at))\\s+([^.;]{3,100})/i},
+    {key:"headquarters",label:"Headquarters",re:/\b(?:headquartered\s+(?:in|at)|headquarters(?:\s+(?:are|is))?\s+(?:located\s+)?(?:in|at)|based\s+(?:in|at))\s+([^.;]{3,100})/i},
     {key:"employees",label:"Employees",re:/\b(?:approximately\s+|about\s+|more than\s+|over\s+)?([\d,]+(?:\.\d+)?\s*(?:million|thousand)?)\s+(?:employees|team members|people)\b/i},
-    {key:"offices",label:"Offices / locations",re:/\\b([\\d,]+)\\s+(?:offices|office locations|locations|sites)\\b/i},
+    {key:"offices",label:"Offices / locations",re:/\b([\d,]+)\s+(?:offices|office locations|locations|sites)\b/i},
     {key:"countries",label:"Countries of operation",re:/\b(?:operates in|in|across)\s+(?:more than\s+|over\s+)?([\d,]+)\s+countries\b/i},
   ];
   const found = new Map<string,CompanyFact>();
