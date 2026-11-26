@@ -33,6 +33,29 @@ test("does not report a disclosure as absent when its filing section was unavail
   assert.match(findings[0].explanation, /not searched/i);
 });
 
+test("does not mistake national population figures for employee counts or workforce geography", () => {
+  const content = [
+    "Approximately 314 million people in the U.S.",
+    "As of December 31, 2025, we employed approximately 75,000 people worldwide."
+  ].join(" ");
+  const workforce = mod.buildResearchFindings(
+    ["Employee count and workforce"],
+    [{ key: "business", title: "Business", content }],
+    "https://www.sec.gov/Archives/edgar/data/78003/000007800326000026/pfe-20251231.htm"
+  );
+  assert.equal(workforce[0].status, "disclosed_in_filing");
+  assert.equal(workforce[0].evidence.length, 1);
+  assert.match(workforce[0].evidence[0].excerpt, /75,000 people/);
+  assert.doesNotMatch(workforce[0].evidence[0].excerpt, /314 million/);
+
+  const geography = mod.buildResearchFindings(
+    ["Employee geography and nationalities"],
+    [{ key: "business", title: "Business", content: "Approximately 314 million people in the U.S." }],
+    "https://www.sec.gov/Archives/edgar/data/78003/000007800326000026/pfe-20251231.htm"
+  );
+  assert.equal(geography[0].status, "not_found_in_filing");
+});
+
 test("recognises Walmart's scaled associate count in workforce findings", () => {
   const findings = mod.buildResearchFindings(
     ["Employee count and workforce"],
