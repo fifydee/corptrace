@@ -326,7 +326,7 @@ type ResearchFinding = {
 const topicEvidencePatterns: Record<string, RegExp[]> = {
   "Company overview and history": [/founded|incorporated|established|company overview|our business/i],
   "Headquarters and registered locations": [/headquartered|principal executive offices|principal office|registered office/i],
-  "Operating regions and countries": [/operate[s]? in|operations in|across .* countries|countries and regions|geographic( al)? areas/i],
+  "Operating regions and countries": [/operate[s]? in|operations? in|conduct(?:s|ed) business in|serves customers in|across .* countries|countries and regions|geographic( al)? areas/i],
   "Offices and facilities": [/offices|facilities|manufacturing sites|distribution centers|data ?centers|stores|locations/i],
   "Products and services": [/products and services|our products|our services|product portfolio|service offerings/i],
   "Business segments and revenue mix": [/reportable segments|operating segments|net sales|revenue[s]? by segment|segment revenue/i],
