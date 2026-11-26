@@ -55,7 +55,7 @@ function App() {
   const [researchLoading, setResearchLoading] = useState(false);
   const [researchError, setResearchError] = useState("");
   const [mobile, setMobile] = useState(false);
-  const [picked, setPicked] = useState(["Company overview", "Headquarters and operating regions", "Products and services", "Financial summary", "Revenue and income sources", "Employee count and workforce"]);
+  const [picked, setPicked] = useState<string[]>([]);
 
   const demoMatches = useMemo(() => companies.filter(c => c.join(" ").toLowerCase().includes(query.toLowerCase())), [query]);
 
@@ -79,7 +79,7 @@ function App() {
     setCompany(item); setPage("Research"); setMetrics(null); setFilings(null); setNarrative(null);
     setResearchError(""); setResearchLoading(true);
     try {
-      const [metricResponse, filingResponse, narrativeResponse] = await Promise.all([
+      const [metricResponse, filingResponse] = await Promise.all([
         fetch(apiUrl(`/sec/company/${item.cik}/metrics`)),
         fetch(apiUrl(`/sec/company/${item.cik}/submissions`)),
         fetch(apiUrl(`/sec/company/${item.cik}/research?topics=${encodeURIComponent(picked.join("|"))}`)),
@@ -112,7 +112,7 @@ function App() {
     if (!company) return;
     setResearchLoading(true); setResearchError("");
     try {
-      const response = await fetch(apiUrl(`/sec/company/${company.cik}/research?topics=${encodeURIComponent(picked.join("|"))}`));
+      if (picked.length === 0) { setResearchError("Select at least one research topic first."); return; }\n      const response = await fetch(apiUrl(`/sec/company/${company.cik}/research?topics=${encodeURIComponent(picked.join("|"))}`));
       const body = await response.json();
       if (!response.ok) throw new Error(body.error ?? "Could not update the selected research.");
       setNarrative(body);
@@ -160,12 +160,12 @@ function App() {
       {!company && <><p>Search the SEC directory to open a company research page.</p><button className="primary" onClick={() => setPage("Directory")}>Find a company</button></>}
       {company && <>
         <section className="research-picker">
-          <div className="picker-heading"><div><label>BUILD YOUR COMPANY REPORT</label><h2>What would you like to know?</h2><p>Select as many topics as you need. CorpTrace will organise the report around your choices and identify information that the company does not disclose.</p></div><span>{picked.length} selected</span></div>
+          <div className="picker-heading"><div><label>BUILD YOUR COMPANY REPORT</label><h2>What would you like to know?</h2><p>Choose what you want to learn about this company. CorpTrace will search relevant company, investor, regulatory and credible business sources for those topics before building your report.</p></div><span>{picked.length} selected</span></div>
           <div className="picker-groups">{categories.map(category=><fieldset key={category.group}><legend>{category.group}</legend><div>{category.items.map(item=><label key={item} className="research-option"><input type="checkbox" checked={picked.includes(item)} onChange={()=>toggleResearchItem(item)}/><span>{item}</span></label>)}</div></fieldset>)}</div>
-          <div className="picker-note"><ShieldCheck size={16}/><span>Figures and claims retain their filing or report source. Workforce geography, gender representation, office counts and product-level profitability are shown only when reliable sources disclose them; CorpTrace will not estimate missing breakdowns.</span></div><button className="primary" onClick={refreshSelectedResearch} disabled={researchLoading}>Update report for selected topics <ArrowUpRight size={14}/></button>
+          <div className="picker-note"><ShieldCheck size={16}/><span>Figures and claims retain their filing or report source. Workforce geography, gender representation, office counts and product-level profitability are shown only when reliable sources disclose them; CorpTrace will not estimate missing breakdowns.</span></div><button className="primary" onClick={refreshSelectedResearch} disabled={researchLoading || picked.length === 0}>Research {picked.length} selected topic{picked.length === 1 ? "" : "s"} <ArrowUpRight size={14}/></button>
         </section>
         <div className="company-meta"><span>CIK {company.cik}</span><span>{company.ticker ?? "Ticker not supplied"}</span><span>SEC EDGAR</span></div>
-        {researchLoading && <div className="notice"><LoaderCircle className="spin"/> Retrieving SEC company facts and filing history…</div>}
+        {researchLoading && <div className="notice"><LoaderCircle className="spin"/> Retrieving selected company research and official filing information…</div>}
         {researchError && <div className="notice warning"><CircleAlert/>{researchError}</div>}
         {metrics && picked.some(item => ["Financial summary","Revenue and income sources","Expenses and operating costs","Profitability and margins","Debt and financial position","Dividends and share buybacks"].includes(item)) && <><div className="source-banner"><CheckCircle2 size={18}/><span><b>Live SEC source response received</b><small>Retrieved {new Date(metrics.retrievedAt).toLocaleString()} · {metrics.reportingBasis}</small></span><a href={metrics.sourceUrl} target="_blank" rel="noreferrer">Open source <ArrowUpRight size={13}/></a></div>
           <div className="notice"><ShieldCheck size={17}/>{metrics.notice}</div>
