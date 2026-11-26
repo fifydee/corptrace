@@ -211,23 +211,25 @@ export async function findOfficialCompanySources(companyName:string, selectedTop
     ...(wants("financial","revenue","profit","income") ? [`${qName} latest annual report financial results revenue profit investor relations`] : []),
   ];
   const resultSets=await Promise.all(queries.map(q=>searchWeb(q).catch(()=>[])));
-  const candidates=resultSets.flat().filter((r,i,a)=>a.findIndex(x=>x.url===r.url)===i)
+  const rawCandidates=resultSets.flat().filter((r,i,a)=>a.findIndex(x=>x.url===r.url)===i);
+  const candidates=rawCandidates
     .filter(r=>{const hay=normalise(r.title+" "+r.snippet+" "+r.url);return terms.some(t=>hay.includes(t));})
     .slice(0,18);
+  if(!candidates.length) console.warn("CorpTrace search produced no company-matched candidates", {companyName, queryResultCounts:resultSets.map(set=>set.length), rawCandidateCount:rawCandidates.length, sampleResults:rawCandidates.slice(0,5).map(result=>({title:result.title,url:result.url}))});
   const sources:CompanySource[]=[];
   for(const candidate of candidates){
     try{
       const response=await fetch(candidate.url,{headers:{"User-Agent":"Mozilla/5.0 (compatible; CorpTraceResearch/2.0)","Accept":"text/html,application/xhtml+xml"},redirect:"follow",signal:AbortSignal.timeout(10000)});
-      if(!response.ok || !(response.headers.get("content-type")??"").includes("text/html"))continue;
+      if(!response.ok || !(response.headers.get("content-type")??"").includes("text/html")){console.warn("CorpTrace external page fetch was not usable",{url:candidate.url,status:response.status,contentType:response.headers.get("content-type")});continue;}
       const url=cleanUrl(response.url||candidate.url,candidate.url); if(!url)continue; const html=(await response.text()).slice(0,2_000_000), pageText=textOf(html);
       const title=decode(html.match(/<title[^>]*>([\s\S]*?)<\/title>/i)?.[1]??candidate.title).replace(/<[^>]+>/g," ").trim().slice(0,180);
       const hay=normalise(title+" "+pageText.slice(0,12000)), matched=terms.filter(t=>hay.includes(t)).length;
       if(matched===0)continue;
       const evidence=extractBlocks(html);
-      if(!evidence.length)continue;
+      if(!evidence.length){console.warn("CorpTrace external page yielded no evidence blocks",{url,title,contentLength:html.length,textLength:pageText.length});continue;}
       const domain=new URL(url).hostname.toLowerCase().replace(/^www\./,"");
       sources.push({title:title||candidate.title,url,domain,sourceType:classify(url, companyName),retrievedAt:new Date().toISOString(),evidence});
-    }catch{/* Continue when an individual publisher blocks retrieval. */}
+    }catch(error){console.warn("CorpTrace external page retrieval failed",{url:candidate.url,error:error instanceof Error?error.message:String(error)});}
   }
   const ranked=sources.sort((a,b)=>({company:0,regulator:1,business_publication:2,other:3}[a.sourceType]-{company:0,regulator:1,business_publication:2,other:3}[b.sourceType])).slice(0,12);
   const facts=extractFacts(ranked);
