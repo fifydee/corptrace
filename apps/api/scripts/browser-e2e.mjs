@@ -81,7 +81,7 @@ try {
     await researchButton.click();
     await page.getByText(/Retrieving selected company research/i).waitFor({ state: "visible" });
     await page.getByRole("heading", { name: "Findings for your selected topics" }).waitFor({ state: "visible", timeout: 20000 });
-    await page.getByText("Microsoft develops software and cloud services.", { exact: true }).first().waitFor({ state: "visible" });
+    await page.getByText("Develops software and cloud services.", { exact: true }).first().waitFor({ state: "visible" });
     assert.equal(researchRequested, true, "research action should call the research endpoint");
     assert.equal(pageErrors.length, 0, "browser should not emit uncaught page errors");
     results.push("company search and selection", "topic selection and research action", "loading state", "source-linked research findings render");
