@@ -76,7 +76,7 @@ function App() {
   }, [query]);
 
   async function openCompany(item: Company) {
-    setCompany(item); setPage("Research"); setMetrics(null); setFilings(null); setNarrative(null);
+    setCompany(item); setPage("Research"); setMetrics(null); setFilings(null); setNarrative(null); setPicked([]);
     setResearchError(""); setResearchLoading(true);
     try {
       const [metricResponse, filingResponse] = await Promise.all([
@@ -102,14 +102,11 @@ function App() {
     { group: "Risk and developments", items: ["Risk factors", "Legal cases and disputes", "Regulatory matters and controversies", "Management changes", "Company announcements", "Recent company news"] },
   ];
   const toggleResearchItem = (item: string) => setPicked(current =>
-    current.includes(item) ? current.filter(value => value !== item) : [...current, item]
-  );
+    current.includes(item) ? current.filter(value => value !== item) : [...current, item]\n  );
 
   async function refreshSelectedResearch() {
     if (!company) return;
-    setResearchLoading(true); setResearchError("");
-    try {
-      if (picked.length === 0) { setResearchError("Select at least one research topic first."); return; }
+    if (picked.length === 0) { setResearchError("Select at least one research topic first."); return; }\n    setResearchLoading(true); setResearchError(""); setNarrative(null);\n    try {
       const response = await fetch(apiUrl(`/sec/company/${company.cik}/research?topics=${encodeURIComponent(picked.join("|"))}`));
       const body = await response.json();
       if (!response.ok) throw new Error(body.error ?? "Could not update the selected research.");
@@ -127,10 +124,10 @@ function App() {
   ];
   const selectedProfileGroups = profileGroups.filter(group => {
     const selection = picked.join(" ").toLowerCase();
-    if (group.title === "Company overview") return /company overview|company profile|history/.test(selection);
-    if (group.title === "Headquarters & operating regions") return /headquarters|registered locations|operating regions|countries|offices|facilities/.test(selection);
-    if (group.title === "Products & services") return /products|services|business segments/.test(selection);
-    if (group.title === "Employees & workforce") return /employee|workforce|gender|nationalities/.test(selection);
+    if (group.title === "Company overview") return /company overview and history/.test(selection);
+    if (group.title === "Headquarters & operating regions") return /headquarters and registered locations|operating regions and countries|offices and facilities/.test(selection);
+    if (group.title === "Products & services") return /products and services|business segments and revenue mix|product and service performance|most profitable products|new products/.test(selection);
+    if (group.title === "Employees & workforce") return /employee count and workforce|employee geography|workforce by country|gender representation/.test(selection);
     return false;
   });
   const profileSources = narrative?.officialSources?.sources ?? [];
@@ -178,22 +175,34 @@ function App() {
           <h2>SEC-reported financial metrics</h2><p>Each available figure below is traceable to an identified SEC filing and is verified as reported by the company. Comparability across companies and accounting treatments is assessed separately.</p>
           <div className="metric-grid">{metrics.metrics.map((m,i)=><article key={m?.metric ?? i} className="metric-card"><small>{m?.label ?? "Metric unavailable"}</small>{m ? <><strong>{money(m.value,m.unit)}</strong><span>{m.periodStart ? `${m.periodStart} to ${m.periodEnd}` : `As at ${m.periodEnd}`}</span><span>{m.form} · Filed {m.filedAt}</span><a href={m.filingUrl} target="_blank" rel="noreferrer">View official SEC filing <ArrowUpRight size={13}/></a><em className="verified-label"><ShieldCheck size={13}/> Verified · SEC-reported</em><small>{m.verificationBasis}</small></> : <><strong>Unavailable</strong><span>No matching standard US-GAAP annual fact found.</span></>}</article>)}</div>
         </>}
-        {narrative?.officialSources && <section className="company-profile">
-          <div className="profile-heading"><div><label>COMPANY PROFILE</label><h2>Get to know {company.companyName}</h2><p>A clear summary of the company, its markets, offerings and people. Each statement links to the source it came from.</p></div><span>Updated {new Date(narrative.officialSources.retrievedAt).toLocaleDateString()}</span></div>
-          <div className="profile-grid">{selectedProfileGroups.map(group => {
-            const facts = group.keys.map(getProfileFact).filter(Boolean);
-            const evidence = getProfileEvidence(group.pattern).filter(item => !facts.some(fact => fact?.evidence === item.excerpt));
-            return <article className="profile-card" key={group.title}><h3>{group.title}</h3><p className="profile-description">{group.description}</p>
-              {facts.length > 0 || evidence.length > 0 ? <div className="profile-copy">
-                {facts.map(fact => <div className="profile-fact" key={fact!.key}><strong>{fact!.key === "founded" ? `Founded ${fact!.value}` : fact!.value}</strong>{fact!.key !== "founded" && <p>{fact!.key === "business" ? fact!.value.charAt(0).toUpperCase() + fact!.value.slice(1) : fact!.label + ": " + fact!.value}</p>}<a href={fact!.sourceUrl} target="_blank" rel="noreferrer">Source: {fact!.sourceTitle} <ArrowUpRight size={12}/></a></div>)}
-                {evidence.map((item,i) => <div className="profile-fact" key={item.sourceUrl+i}><p>{item.excerpt.charAt(0).toUpperCase() + item.excerpt.slice(1)}</p><a href={item.sourceUrl} target="_blank" rel="noreferrer">Source: {item.sourceTitle} <ArrowUpRight size={12}/></a></div>)}
-              </div> : <p className="profile-empty">{group.empty}</p>}
-              {group.title === "Employees & workforce" && <p className="profile-caveat">Gender and regional/national workforce percentages are shown only when explicitly disclosed. No estimates are made.</p>}
-            </article>;
-          })}</div><p className="profile-method">Information is attributed to the linked company, regulator or publication source. If a detail is not disclosed or could not be confirmed, CorpTrace says so rather than estimating it.</p>
-        </section>}
+        {narrative && <>
+          {narrative.officialSources && selectedProfileGroups.length > 0 && <section className="company-profile">
+            <div className="profile-heading"><div><label>COMPANY PROFILE</label><h2>Get to know {company.companyName}</h2><p>Concise findings from sources relevant to the profile topics you selected.</p></div><span>Updated {new Date(narrative.officialSources.retrievedAt).toLocaleDateString()}</span></div>
+            <div className="profile-grid">{selectedProfileGroups.map(group => {
+              const facts = group.keys.map(getProfileFact).filter(Boolean);
+              const evidence = getProfileEvidence(group.pattern).filter(item => !facts.some(fact => fact?.evidence === item.excerpt));
+              return <article className="profile-card" key={group.title}><h3>{group.title}</h3><p className="profile-description">{group.description}</p>
+                {facts.length > 0 || evidence.length > 0 ? <div className="profile-copy">
+                  {facts.map(fact => <div className="profile-fact" key={fact!.key}><strong>{fact!.key === "founded" ? `Founded ${fact!.value}` : fact!.value}</strong>{fact!.key !== "founded" && <p>{fact!.key === "business" ? fact!.value.charAt(0).toUpperCase() + fact!.value.slice(1) : fact!.label + ": " + fact!.value}</p>}<a href={fact!.sourceUrl} target="_blank" rel="noreferrer">Source: {fact!.sourceTitle} <ArrowUpRight size={12}/></a></div>)}
+                  {evidence.map((item,i) => <div className="profile-fact" key={item.sourceUrl+i}><p>{item.excerpt}</p><a href={item.sourceUrl} target="_blank" rel="noreferrer">Source: {item.sourceTitle} <ArrowUpRight size={12}/></a></div>)}
+                </div> : <p className="profile-empty">{group.empty}</p>}
+                {group.title === "Employees & workforce" && <p className="profile-caveat">Regional, nationality and gender breakdowns appear only when a retrieved source explicitly reports them.</p>}
+              </article>;
+            })}</div><p className="profile-method">Company profile statements link to their originating source. Disclosures are not inferred where evidence is absent.</p>
+          </section>}
+          <section className="company-profile">
+            <div className="profile-heading"><div><label>YOUR RESEARCH</label><h2>Findings for your selected topics</h2><p>Each result distinguishes evidence found, limited filing coverage and topics that need another source type.</p></div></div>
+            <div className="profile-grid">{(narrative.findings ?? []).map((finding,i) => <article className="profile-card" key={finding.topic+i}>
+              <h3>{finding.topic}</h3>
+              <p className="profile-description">{finding.status === "disclosed_in_filing" ? "Evidence located in the identified annual filing" : finding.status === "not_found_in_filing" ? "No matching evidence located in the sections reviewed" : "Not searched by this source"}</p>
+              {finding.evidence.length > 0 ? finding.evidence.map((item,j)=><div className="profile-fact" key={j}><p>{item.excerpt}</p><small>{item.section}</small><a href={item.documentUrl} target="_blank" rel="noreferrer">Open filing evidence <ArrowUpRight size={12}/></a></div>) : <p className="profile-empty">{finding.explanation}</p>}
+              <p className="profile-method">{finding.explanation}</p>
+            </article>)}</div>
+            <p className="profile-method">{narrative.notice}</p>
+          </section>
+        </> }
         {narrative && <section className="filing-research filing-reference"><div className="filing-research-head"><div><label>FILING REFERENCE</label><h2>Annual filing & research coverage</h2><p>{narrative.form} · Filed {narrative.filedAt} · Reporting date {narrative.reportDate || "not supplied"}</p></div><a href={narrative.documentUrl} target="_blank" rel="noreferrer">Open complete filing <ArrowUpRight size={13}/></a></div><p className="filing-reference-note">The original filing is available if you want to examine the company's full regulatory disclosure. CorpTrace presents the relevant company information above in a readable summary.</p></section>}
-        {picked.some(item => !["Financial summary","Revenue and income sources","Expenses and operating costs","Profitability and margins","Debt and financial position","Dividends and share buybacks"].includes(item)) && !narrative && <section className="research-followup"><h2>Your selected company research</h2><p>These topics are part of the configurable report. The latest annual filing could not be extracted automatically. You can still open the official filing below; the extraction service will report unavailable rather than inventing company details.</p><div className="selected-topics">{picked.filter(item=>!["Financial summary","Revenue and income sources","Expenses and operating costs","Profitability and margins","Debt and financial position","Dividends and share buybacks"].includes(item)).map(item=><div key={item}><span>{item}</span><small>Selected · filing extraction to be connected</small></div>)}</div></section>}
+
         {filings && <><h2>Recent filing history</h2><p>Recent SEC submissions for {filings.data.name ?? company.companyName}.</p><div className="filing-list">{(filings.data.filings?.recent?.form ?? []).map((form,i)=>({form,date:filings.data.filings?.recent?.filingDate?.[i] ?? "",report:filings.data.filings?.recent?.reportDate?.[i] ?? "",accession:filings.data.filings?.recent?.accessionNumber?.[i] ?? "",doc:filings.data.filings?.recent?.primaryDocument?.[i] ?? ""})).filter(x=>["10-K","20-F","40-F","10-Q","8-K"].includes(x.form)).slice(0,12).map((f,i)=>{const cik=company.cik.replace(/^0+/,"");const accession=f.accession.replace(/-/g,"");const url=`https://www.sec.gov/Archives/edgar/data/${cik}/${accession}/${f.doc}`;return <a key={f.accession+i} href={url} target="_blank" rel="noreferrer"><FileText size={17}/><span><b>{f.form}</b><small>Filed {f.date} · Reporting date {f.report || "not supplied"}</small></span><ArrowUpRight size={14}/></a>})}</div></>}
       </>}
     </main>}
