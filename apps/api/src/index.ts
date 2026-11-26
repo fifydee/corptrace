@@ -310,6 +310,75 @@ function buildTopicCoverage(selectedTopics: string[], sections: Array<{ key: str
   });
 }
 
+type ResearchFinding = {
+  topic: string;
+  status: "disclosed_in_filing" | "not_found_in_filing" | "not_searched";
+  evidence: Array<{ section: string; excerpt: string; documentUrl: string }>;
+  explanation: string;
+};
+
+const topicEvidencePatterns: Record<string, RegExp[]> = {
+  "Company overview and history": [/founded|incorporated|established|company overview|our business/i],
+  "Headquarters and registered locations": [/headquartered|principal executive offices|principal office|registered office/i],
+  "Operating regions and countries": [/operate[s]? in|operations in|across .* countries|countries and regions|geographic( al)? areas/i],
+  "Offices and facilities": [/offices|facilities|manufacturing sites|distribution centers|data ?centers|stores|locations/i],
+  "Products and services": [/products and services|our products|our services|product portfolio|service offerings/i],
+  "Business segments and revenue mix": [/reportable segments|operating segments|net sales|revenue[s]? by segment|segment revenue/i],
+  "Employee count and workforce": [/employees|persons employed|full.time employees|workforce/i],
+  "Employee geography and nationalities": [/employees? (?:in|located in)|workforce .* (?:country|region)|international employees|employees outside/i],
+  "Workforce by country or region": [/employees? (?:in|located in)|workforce .* (?:country|region)|international employees|employees outside/i],
+  "Gender representation (where disclosed)": [/women|female|gender|men and women|gender diversity/i],
+  "Leadership and compensation": [/executive officers|named executive officers|executive compensation|leadership team/i],
+  "Leadership changes and compensation": [/appointed|resigned|retired|chief executive officer|executive compensation/i],
+  "Product and service performance": [/product revenue|service revenue|net sales|segment results|product line/i],
+  "Most profitable products or services": [/segment operating income|product profitability|gross profit by|operating profit by segment/i],
+  "New products and development pipeline": [/new product|product launch|in development|pipeline|research and development|introduced .* product/i],
+  "Investment, R&D and AI": [/research and development|artificial intelligence|\bAI\b|capital expenditures|investments? in/i],
+  "Acquisitions and mergers": [/acquisition|acquired|merger|business combination/i],
+  "Expansion plans and new facilities": [/expand|expansion|new facility|new facilities|new office|new offices|enter .* market|market expansion/i],
+  "Risk factors": [/risk factors|material risks/i],
+  "Legal cases and disputes": [/legal proceedings|litigation|lawsuit|claims and disputes/i],
+  "Regulatory matters and controversies": [/regulatory|investigation|enforcement|consent decree|controvers/i],
+  "Recent company news": [],
+  "Management changes": [/appointed|resigned|retired|departure|succeeded by|named .* chief/i],
+  "Company announcements": [/announced|announcement|press release|we intend|we plan to/i],
+};
+
+function buildResearchFindings(
+  selectedTopics: string[],
+  sections: Array<{ key: string; title: string; content: string | null }>,
+  documentUrl: string,
+): ResearchFinding[] {
+  return selectedTopics.map(topic => {
+    const keys = researchTopicSectionMap[topic] ?? [];
+    if (!keys.length) return {
+      topic, status: "not_searched", evidence: [],
+      explanation: "This topic is not covered by the annual filing search alone. A separate current-news or external-source search is required.",
+    };
+    const patterns = topicEvidencePatterns[topic] ?? [];
+    const evidence: ResearchFinding["evidence"] = [];
+    for (const section of sections.filter(item => keys.includes(item.key) && item.content)) {
+      const lines = (section.content ?? "").split(/(?<=[.!?])\\s+|\\n+/).map(line => line.trim()).filter(Boolean);
+      for (const line of lines) {
+        if (patterns.some(pattern => pattern.test(line))) {
+          const excerpt = line.slice(0, 700);
+          if (!evidence.some(item => item.excerpt === excerpt)) evidence.push({ section: section.title, excerpt, documentUrl });
+          if (evidence.length >= 4) break;
+        }
+      }
+      if (evidence.length >= 4) break;
+    }
+    return {
+      topic,
+      status: evidence.length ? "disclosed_in_filing" : "not_found_in_filing",
+      evidence,
+      explanation: evidence.length
+        ? "Evidence excerpts were found in the identified filing. Read the surrounding filing context before drawing conclusions."
+        : "No matching disclosure was found in the sections of the latest annual filing reviewed. This does not prove the company has never disclosed it elsewhere.",
+    };
+  });
+}
+
 async function getCompanyResearch(cik: string, userAgent: string, selectedTopics: string[] = []): Promise<Response> {
   const submissionsUrl = `https://data.sec.gov/submissions/CIK${cik}.json`;
   let submissionsResponse: Response;
