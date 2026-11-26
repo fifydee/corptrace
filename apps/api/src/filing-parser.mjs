@@ -1,4 +1,4 @@
-export export function cleanFilingText(html): string {
+export function cleanFilingText(html) {
   return html
     .replace(/<script\b[\s\S]*?<\/script\s*>/gi, "\n")
     .replace(/<style\b[\s\S]*?<\/style\s*>/gi, "\n")
@@ -16,7 +16,7 @@ export export function cleanFilingText(html): string {
     .replace(/&lt;/gi, "<")
     .replace(/&gt;/gi, ">")
     .replace(/&#(\d+);/g, (_match, code) => String.fromCharCode(Number(code)))
-    .replace(/&#x([0-9a-f]+);/gi, (_match, code: string) => String.fromCharCode(parseInt(code, 16)))
+    .replace(/&#x([0-9a-f]+);/gi, (_match, code) => String.fromCharCode(parseInt(code, 16)))
     .split(/\r?\n/)
     .map(line => line.replace(/[ \t\f\v]+/g, " ").replace(/\s+\|\s+/g, " | ").trim())
     .filter(Boolean)
@@ -25,9 +25,9 @@ export export function cleanFilingText(html): string {
     .trim();
 }
 
-export function findSectionHeading(text: string, patterns) {
+export function findSectionHeading(text, patterns) {
   const lines = text.split("\n");
-  const candidates: SectionHeading[] = [];
+  const candidates = [] = [];
   let offset = 0;
   for (let lineNumber = 0; lineNumber < lines.length; lineNumber++) {
     const line = lines[lineNumber].trim();
@@ -52,7 +52,7 @@ export function findSectionHeading(text: string, patterns) {
   return best && best.score >= 2 ? best.candidate : null;
 }
 
-export function extractItemSection(text: string, patterns: RegExp[]) {
+export function extractItemSection(text, patterns) {
   const heading = findSectionHeading(text, patterns);
   if (!heading) return null;
   const lines = text.split("\n");
