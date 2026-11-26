@@ -260,7 +260,7 @@ if (runExternalSourceQa) {
   if (withOfficialCompanyPage < 2) failures.push("Fewer than two of three companies returned an official company-domain page");
   if (withBusinessPublication === 0) report.externalDiscoveryCoverage.warning = "No established business-publication pages were found in this run.";
   if (externalFactCount === 0) report.externalDiscoveryCoverage.factWarning = "No external company profile facts were extracted; SEC facts remain the primary source.";
-  await writeFile(outputPath, JSON.stringify(report, null, 2) + "\\n");
+  await writeFile(outputPath, JSON.stringify(report, null, 2) + "\n");
 }
 if (process.env.GITHUB_STEP_SUMMARY) {
   const summary = [
@@ -276,7 +276,9 @@ if (process.env.GITHUB_STEP_SUMMARY) {
     "",
     "Full excerpts and topic results are available in the " + (runExternalSourceQa ? "live-company-source-qa-report.json" : "live-sec-qa-report.json") + " workflow artifact.",
     "",
-    failures.length ? "### Findings requiring attention\n\n" + failures.map((failure) => "- " + failure).join("\n") : "All live SEC checks passed.",
+    runExternalSourceQa ? "### External discovery coverage\n\n" + JSON.stringify(report.externalDiscoveryCoverage ?? {}) : "",
+    ...report.companies.filter(company => company.warnings?.length).map(company => "- Coverage warning for " + company.id + ": " + company.warnings.join("; ")),
+    failures.length ? "### Blocking findings\n\n" + failures.map((failure) => "- " + failure).join("\n") : "No blocking source-integrity or SEC checks failed.",
   ].join("\n");
   await appendFile(process.env.GITHUB_STEP_SUMMARY, summary + "\n");
 }
