@@ -102,11 +102,14 @@ function App() {
     { group: "Risk and developments", items: ["Risk factors", "Legal cases and disputes", "Regulatory matters and controversies", "Management changes", "Company announcements", "Recent company news"] },
   ];
   const toggleResearchItem = (item: string) => setPicked(current =>
-    current.includes(item) ? current.filter(value => value !== item) : [...current, item]\n  );
+    current.includes(item) ? current.filter(value => value !== item) : [...current, item]
+  );
 
   async function refreshSelectedResearch() {
     if (!company) return;
-    if (picked.length === 0) { setResearchError("Select at least one research topic first."); return; }\n    setResearchLoading(true); setResearchError(""); setNarrative(null);\n    try {
+    if (picked.length === 0) { setResearchError("Select at least one research topic first."); return; }
+    setResearchLoading(true); setResearchError(""); setNarrative(null);
+    try {
       const response = await fetch(apiUrl(`/sec/company/${company.cik}/research?topics=${encodeURIComponent(picked.join("|"))}`));
       const body = await response.json();
       if (!response.ok) throw new Error(body.error ?? "Could not update the selected research.");
