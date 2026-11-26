@@ -452,7 +452,8 @@ export default {
       const cik = normaliseCik(researchMatch[1]);
       if (!cik) return json({ error: "Invalid CIK. Supply between 1 and 10 digits." }, 400);
       if (!env.SEC_USER_AGENT || !/\S+\s+\S+/.test(env.SEC_USER_AGENT)) return json({ error: "SEC_USER_AGENT is not configured." }, 503);
-      const selectedTopics = (url.searchParams.get("topics") ?? "").split("|").map(topic => topic.trim()).filter(Boolean).slice(0, 30);\n      return getCompanyResearch(cik, env.SEC_USER_AGENT, selectedTopics);
+      const selectedTopics = (url.searchParams.get("topics") ?? "").split("|").map(topic => topic.trim()).filter(Boolean).slice(0, 30);
+      return getCompanyResearch(cik, env.SEC_USER_AGENT, selectedTopics);
     }
 
     const metricsMatch = url.pathname.match(
