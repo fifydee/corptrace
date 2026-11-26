@@ -158,7 +158,7 @@ async function searchWeb(query: string): Promise<Array<{ title: string; url: str
         const newsXml = newsResponse.ok ? await newsResponse.text() : "";
         const newsResults = parseGoogleNewsRssResults(newsXml);
         if(!newsResults.length) console.warn("CorpTrace Google News RSS returned no publisher results", {
-          status: newsResponse.status, bodyLength: newsXml.length, itemMarkup: /<item\\b/i.test(newsXml), query: query.slice(0,160)
+          status: newsResponse.status, bodyLength: newsXml.length, itemMarkup: /<item\b/i.test(newsXml), query: query.slice(0,160)
         });
         const merged = [...results, ...newsResults].filter((item,index,all)=>all.findIndex(other=>other.url===item.url)===index);
         return merged.slice(0,25);
