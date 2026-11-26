@@ -47,6 +47,22 @@ test("recognises SEC Item headings separated by em dashes", () => {
   assert.doesNotMatch(section ?? "", /risk disclosure/);
 });
 
+test("recognises SEC Item headings split across table cells", () => {
+  const text = [
+    "ITEM 1. | BUSINESS",
+    "The company operates stores and digital channels and serves customers across multiple international markets.",
+    "Its business includes retail, wholesale, eCommerce and a broad range of services.",
+    "ITEM 1A. | RISK FACTORS",
+    "This risk disclosure must not be included in the business section."
+  ].join("\n");
+  const patterns = [/ITEM\s+1[-.\s:|—–]+BUSINESS/i];
+  const heading = findSectionHeading(text, patterns);
+  const section = extractItemSection(text, patterns);
+  assert.equal(heading?.line, 0);
+  assert.match(section ?? "", /operates stores and digital channels/);
+  assert.doesNotMatch(section ?? "", /risk disclosure/);
+});
+
 test("returns null when only an unsupported heading is present", () => {
   assert.equal(extractItemSection("ITEM 1. BUSINESS\nITEM 1A. RISK FACTORS", business), null);
 });
