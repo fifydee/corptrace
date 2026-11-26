@@ -64,6 +64,7 @@ const companies = [
     expectedName: /Dell Technologies/i,
     employeePattern: /97,000\s+employees/i,
     employeeLabel: "approximately 97,000 employees",
+    headquartersPattern: /Round Rock/i,
   },
   {
     id: "walmart",
@@ -71,6 +72,7 @@ const companies = [
     expectedName: /Walmart/i,
     employeePattern: /2\.1\s+million\s+associates/i,
     employeeLabel: "approximately 2.1 million associates",
+    headquartersPattern: /Bentonville/i,
   },
   {
     id: "pfizer",
@@ -78,6 +80,7 @@ const companies = [
     expectedName: /Pfizer/i,
     employeePattern: /75,000\s+people/i,
     employeeLabel: "approximately 75,000 people",
+    headquartersPattern: /New York City/i,
   },
 ];
 
@@ -117,6 +120,22 @@ for (const company of companies) {
       const businessSection = body.sections?.find((section) => section.key === "business");
       if (!businessSection?.content) errors.push("Item 1 / Business section was not extracted");
       if (!businessSection?.extraction?.headingMatched) errors.push("Business section heading was not matched");
+
+      const profileFacts = body.officialSources?.facts ?? [];
+      const employeeFact = profileFacts.find((fact) => fact.key === "employees");
+      if (!employeeFact || !company.employeePattern.test(employeeFact.value)) {
+        errors.push("SEC fallback profile facts did not extract " + company.employeeLabel + "; received: " + (employeeFact?.value ?? "no employee fact"));
+      }
+      const headquartersFact = profileFacts.find((fact) => fact.key === "headquarters");
+      if (!headquartersFact || !company.headquartersPattern.test(headquartersFact.value)) {
+        errors.push("SEC fallback profile facts did not extract the expected headquarters; received: " + (headquartersFact?.value ?? "no headquarters fact"));
+      }
+      if (company.id === "walmart") {
+        const countriesFact = profileFacts.find((fact) => fact.key === "countries");
+        if (!countriesFact || countriesFact.value !== "18") {
+          errors.push("Expected Walmart international operations country count of 18; received: " + (countriesFact?.value ?? "no country count"));
+        }
+      }
 
       const workforceFinding = body.findings?.find((finding) => finding.topic === "Employee count and workforce");
       if (!workforceFinding) {
