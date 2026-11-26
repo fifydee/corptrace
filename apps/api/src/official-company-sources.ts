@@ -40,12 +40,23 @@ export function cleanUrl(href: string, base: string): string | null {
       const target = u.searchParams.get("uddg");
       if (target) return cleanUrl(target, base);
     }
+    if (u.hostname === "www.bing.com" && u.pathname === "/ck/a") {
+      const encoded = u.searchParams.get("u") ?? "";
+      if (encoded.startsWith("a1")) {
+        const base64 = encoded.slice(2).replace(/-/g, "+").replace(/_/g, "/");
+        const padded = base64 + "=".repeat((4 - base64.length % 4) % 4);
+        const bytes = Uint8Array.from(atob(padded), character => character.charCodeAt(0));
+        const target = new TextDecoder().decode(bytes);
+        return cleanUrl(target, "https://www.bing.com/");
+      }
+      return null;
+    }
     return u.toString();
   } catch { return null; }
 }
 function attribute(tag: string, name: string): string {
   const match = tag.match(new RegExp("\\b" + name + "\\s*=\\s*(['\"])(.*?)\\1", "i"));
-  return match?.[2] ?? "";
+  return match ? decode(match[2]) : "";
 }
 export function parseDuckDuckGoResults(html: string, endpoint: string): Array<{ title: string; url: string; snippet: string }> {
   const results: Array<{ title: string; url: string; snippet: string }> = [];
