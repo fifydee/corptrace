@@ -26,6 +26,14 @@ test("parses DuckDuckGo result links when href and class attributes vary in orde
   assert.match(results[0].snippet, /global technology company/);
 });
 
+test("parses Bing RSS result items as a second fallback", () => {
+  const xml = `<rss><channel><item><title>Pfizer About</title><link>https://www.pfizer.com/about</link><description>Pfizer is a global biopharmaceutical company.</description></item></channel></rss>`;
+  const results = mod.parseBingRssResults(xml);
+  assert.equal(results.length, 1);
+  assert.equal(results[0].url, "https://www.pfizer.com/about");
+  assert.match(results[0].snippet, /biopharmaceutical company/);
+});
+
 test("parses Bing organic results as a fallback provider", () => {
   const html = `<ol id="b_results"><li class="b_algo"><h2><a href="https://www.pfizer.com/about">About Pfizer</a></h2><div class="b_caption"><p>Pfizer is a global biopharmaceutical company.</p></div></li></ol>`;
   const results = mod.parseBingResults(html);
