@@ -106,6 +106,20 @@ export function parseBingRssResults(xml: string): Array<{ title: string; url: st
   }
   return results;
 }
+export function parseGoogleNewsRssResults(xml: string): Array<{ title: string; url: string; snippet: string; publisherUrl?: string }> {
+  const results: Array<{ title: string; url: string; snippet: string; publisherUrl?: string }> = [];
+  for (const item of xml.matchAll(/<item\b[^>]*>([\s\S]*?)<\/item>/gi)) {
+    const title = textOf(item[1].match(/<title\b[^>]*>([\s\S]*?)<\/title>/i)?.[1] ?? "").slice(0, 180);
+    const url = cleanUrl(decode(textOf(item[1].match(/<link\b[^>]*>([\s\S]*?)<\/link>/i)?.[1] ?? "")), "https://news.google.com/");
+    const snippet = textOf(item[1].match(/<description\b[^>]*>([\s\S]*?)<\/description>/i)?.[1] ?? "").slice(0, 500);
+    const sourceTag = item[1].match(/<source\b[^>]*>([\s\S]*?)<\/source>/i);
+    const publisherUrl = sourceTag ? cleanUrl(attribute(sourceTag[0], "url"), "https://news.google.com/") ?? undefined : undefined;
+    if (!title || !url || results.some(result => result.url === url)) continue;
+    results.push({ title, url, snippet, publisherUrl });
+    if (results.length >= 10) break;
+  }
+  return results;
+}
 async function searchWeb(query: string): Promise<Array<{ title: string; url: string; snippet: string }>> {
   const headers = {
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120.0.0.0 Safari/537.36",
@@ -134,7 +148,23 @@ async function searchWeb(query: string): Promise<Array<{ title: string; url: str
     const response = await fetch(endpoint, { headers, signal: AbortSignal.timeout(10000) });
     const html = response.ok ? await response.text() : "";
     const results = parseBingResults(html);
-    if (results.length) return results;
+    if (results.length) {
+      const newsEndpoint = "https://news.google.com/rss/search?q=" + encodeURIComponent(query) + "&hl=en-US&gl=US&ceid=US:en";
+      try {
+        const newsResponse = await fetch(newsEndpoint, {
+          headers: { ...headers, "Accept": "application/rss+xml,application/xml;q=0.9,*/*;q=0.8" },
+          signal: AbortSignal.timeout(10000)
+        });
+        const newsResults = newsResponse.ok ? parseGoogleNewsRssResults(await newsResponse.text()) : [];
+        const merged = [...results, ...newsResults].filter((item,index,all)=>all.findIndex(other=>other.url===item.url)===index);
+        return merged.slice(0,15);
+      } catch (error) {
+        console.warn("CorpTrace Google News RSS search request failed", {
+          error: error instanceof Error ? error.message : String(error), query: query.slice(0, 160)
+        });
+        return results;
+      }
+    }
     console.warn("CorpTrace Bing HTML search returned no parsed results", {
       status: response.status, htmlLength: html.length,
       resultMarkup: html.includes("b_algo"), query: query.slice(0, 160)
