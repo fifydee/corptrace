@@ -146,7 +146,7 @@ try {
     await page.close();
   }
 
-  process.stdout.write(JSON.stringify({ result: "passed", browser: "Chromium", checks: results }) + "\\n");
-} } finally {
+  process.stdout.write(JSON.stringify({ result: "passed", browser: "Chromium", checks: results }) + "\n");
+} finally {
   await browser.close();
 }
