@@ -308,7 +308,7 @@ const researchTopicSectionMap: Record<string, string[]> = {
   "Employee geography and nationalities": ["business"],
   "Workforce by country or region": ["business"],
   "Gender representation (where disclosed)": ["business"],
-    "Leadership changes and compensation": ["management"],
+  "Leadership changes and compensation": ["management"],
   "Product and service performance": ["business", "management"],
   "Most profitable products or services": ["business", "management"],
   "New products and development pipeline": ["business"],
@@ -386,7 +386,7 @@ function buildResearchFindings(
       topic, status: "not_searched", evidence: [],
       explanation: "This topic is not covered by the annual filing search alone. A separate current-news or external-source search is required.",
     };
-    const patterns = topicEvidencePatterns[topic] ?? [];\n    if (!patterns.length) return { topic, status: "not_searched", evidence: [], explanation: "No topic-specific evidence rule is configured yet. A broad filing section is not treated as an answer to this question." };
+    const patterns = topicEvidencePatterns[topic] ?? [];\n    if (!patterns.length) return { topic, status: "not_searched", evidence: [], explanation: "No topic-specific evidence rule is configured yet. A broad filing section is not treated as an answer to this question." };\n    if (!patterns.length) return { topic, status: "not_searched", evidence: [], explanation: "No topic-specific evidence rule is configured yet. A broad filing section is not treated as an answer to this question." };
     if (!patterns.length) return {
       topic, status: "not_searched", evidence: [],
       explanation: "No topic-specific evidence rule is configured yet. CorpTrace will not treat a broad filing section as an answer to this question.",
