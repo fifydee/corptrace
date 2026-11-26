@@ -51,5 +51,5 @@ test("extracts source-attributed company facts without treating facility square 
   assert.equal(facts.find(x => x.key === "countries")?.value, "170");
   assert.match(facts.find(x => x.key === "headquarters")?.value ?? "", /One Dell Way/);
   assert.equal(facts.some(x => x.key === "offices"), false);
-  assert.equal(facts.some(x => x.key === "business"), false);
+  assert.match(facts.find(x => x.key === "business")?.value ?? "", /global technology company/i);
 });
