@@ -47,3 +47,11 @@ The current first-pass SEC data adapter is strongest for SEC registrants. Non-US
 - The global ranking reference is not recomputed from CorpTrace-normalised source filings yet.
 
 Check current Cloudflare plan limits and account settings before production use; this guide does not promise unlimited free usage.
+
+## API abuse protection
+
+The Worker config includes a Cloudflare Rate Limiting binding named `API_RATE_LIMITER`. It allows 30 weighted units per client IP per 60 seconds; ordinary SEC API requests cost one unit and annual-filing research requests cost five. The health endpoint is excluded. Requests over the limit receive HTTP 429.
+
+The namespace ID in `apps/api/wrangler.toml` must be unique within the Cloudflare account. Change it if another Worker already uses that ID for a different rate-limit purpose. Cloudflare's Worker rate-limit counters are approximate and maintained separately in each Cloudflare location; they are a useful abuse-control layer, not a strict global quota. IP-based limits can also affect multiple people sharing a mobile carrier or corporate network. For a strict global quota or authenticated per-user limits, use a Durable Object-backed limiter or key requests by a verified user identity.
+
+The research endpoint also applies request timeouts to SEC and external-source fetches so a slow upstream publisher cannot hold a request open indefinitely.
