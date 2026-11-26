@@ -10,6 +10,8 @@ export function cleanFilingText(html) {
     .replace(/<(?:td|th)\b[^>]*>/gi, " ")
     .replace(/<[^>]*>/g, " ")
     .replace(/&nbsp;|&#160;|&#xA0;/gi, " ")
+    .replace(/&mdash;|&#8212;|&#x2014;/gi, "—")
+    .replace(/&ndash;|&#8211;|&#x2013;/gi, "–")
     .replace(/&amp;/gi, "&")
     .replace(/&quot;|&#34;/gi, '"')
     .replace(/&#39;|&apos;/gi, "'")
