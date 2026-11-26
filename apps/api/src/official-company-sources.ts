@@ -71,6 +71,7 @@ export function extractBlocks(html: string): Evidence[] {
 export function extractFacts(sources: CompanySource[]): CompanyFact[] {
   const definitions: Array<{key:string;label:string;re:RegExp}>=[
     {key:"business",label:"Company overview",re:/\b((?:is|are)\s+(?:a|an)\s+[^.!?]{15,220}(?:company|provider|manufacturer|technology|retailer|platform|business|services|products)[^.!?]{0,180})[.!?]/i},
+    {key:"products_services",label:"Products and services",re:/\b((?:[^.!?]{0,100}(?:designs and sells|develops and sells|offers|provides|manufactures|products include|services include|portfolio includes)[^.!?]{15,260}))(?=[.!?])/i},
     {key:"founded",label:"Founded",re:/\b(?:founded|established|incorporated)\s+(?:in\s+)?(?:in\s+)?(?:the year\s+)?(\d{4})\b/i},
     {key:"headquarters",label:"Headquarters",re:/\b(?:headquartered\s+(?:in|at)|headquarters(?:\s+(?:are|is))?\s+(?:located\s+)?(?:in|at)|based\s+(?:in|at))\s+([^.;]{3,100})/i},
     {key:"employees",label:"Employees",re:/\b(?:approximately\s+|about\s+|more than\s+|over\s+)?([\d,]+(?:\.\d+)?\s*(?:million|thousand)?)\s+(?:employees|team members|people)\b/i},
