@@ -29,7 +29,8 @@ type NarrativeResearch = {
   source: string; form: string; filedAt: string; reportDate: string;
   documentUrl: string; retrievedAt: string; notice: string;
   sections: { key: string; title: string; content: string | null; dataStatus: string; note: string }[];
-  topicCoverage?: { topic: string; status: string; evidenceSections: { key: string; title: string; dataStatus: string }[]; limitation: string }[];\n  findings?: { topic: string; status: "disclosed_in_filing" | "not_found_in_filing" | "not_searched"; evidence: { section: string; excerpt: string; documentUrl: string }[]; explanation: string }[];
+  topicCoverage?: { topic: string; status: string; evidenceSections: { key: string; title: string; dataStatus: string }[]; limitation: string }[];
+  findings?: { topic: string; status: "disclosed_in_filing" | "not_found_in_filing" | "not_searched"; evidence: { section: string; excerpt: string; documentUrl: string }[]; explanation: string }[];
 };
 
 const API_BASE = (import.meta.env.VITE_API_BASE_URL ?? "").replace(/\/$/, "");
