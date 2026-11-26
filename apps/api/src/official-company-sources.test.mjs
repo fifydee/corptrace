@@ -73,3 +73,15 @@ test("extracts source-attributed company facts without treating facility square 
   assert.ok(evidence.some(x => /global technology company/i.test(x.excerpt)));
   assert.ok(evidence.some(x => /personal computers, servers/i.test(x.excerpt)));
 });
+
+\ntest("rejects stock-compensation paragraphs even when they mention employees and services", () => {
+  const html = [
+    "<h2>Stock-Based Compensation</h2>",
+    "<p>The stock-based compensation plan provides stock incentive awards to employees and other service providers of the Company.</p>",
+    "<h2>Business Overview</h2>",
+    "<p>Acme is a global technology company that designs and sells cloud software to businesses worldwide.</p>"
+  ].join("");
+  const evidence = mod.extractBlocks(html);
+  assert.equal(evidence.some(x => /stock-based compensation|stock incentive awards/i.test(x.excerpt)), false);
+  assert.equal(evidence.some(x => /global technology company/i.test(x.excerpt)), true);
+});
