@@ -78,7 +78,7 @@ function App() {
       const [metricResponse, filingResponse, narrativeResponse] = await Promise.all([
         fetch(apiUrl(`/sec/company/${item.cik}/metrics`)),
         fetch(apiUrl(`/sec/company/${item.cik}/submissions`)),
-        fetch(apiUrl(`/sec/company/${item.cik}/research`)),
+        fetch(apiUrl(`/sec/company/${item.cik}/research?topics=${encodeURIComponent(picked.join("|"))}`)),
       ]);
       const metricBody = await metricResponse.json();
       const filingBody = await filingResponse.json();
