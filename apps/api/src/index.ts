@@ -1,3 +1,4 @@
+import { findOfficialCompanySources } from "./official-company-sources";
 import { cleanFilingText, findSectionHeading, extractItemSection } from "./filing-parser.mjs";
 
 export interface Env {
@@ -249,6 +250,7 @@ type FilingRecent = {
   primaryDocument?: string[];
 };
 type SubmissionPayload = {
+  name?: string;
   filings?: { recent?: FilingRecent };
 };
 const filingTopics = [
@@ -389,6 +391,11 @@ async function getCompanyResearch(cik: string, userAgent: string, selectedTopics
   }
   if (!submissionsResponse.ok) return json({ error: "SEC filing submissions request failed.", upstreamStatus: submissionsResponse.status }, 502);
   const submissions = await submissionsResponse.json() as SubmissionPayload;
+  const companyName = submissions.name ?? "Unknown company";
+  const officialSourcesPromise = findOfficialCompanySources(companyName).catch(() => ({
+    sourceSearch: "unavailable", retrievedAt: new Date().toISOString(), sources: [],
+    notice: "Official company website discovery could not be completed for this request.",
+  }));
   const recent = submissions.filings?.recent;
   const forms = recent?.form ?? [];
   const index = forms.findIndex(form => ["10-K", "20-F", "40-F"].includes(form));
@@ -427,8 +434,11 @@ async function getCompanyResearch(cik: string, userAgent: string, selectedTopics
         : "No sufficiently supported section heading was detected. This does not establish that the filing lacks the information."
     };
   });
+  const officialSources = await officialSourcesPromise;
   return json({
-    source: "SEC EDGAR annual filing",
+    source: "SEC EDGAR annual filing and official company website search",
+    companyName,
+    officialSources,
     cik,
     form,
     filedAt,
