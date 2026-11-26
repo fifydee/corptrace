@@ -23,6 +23,16 @@ test("matches real SEC filing heading punctuation used by issuers", () => {
   assert.ok(business?.patterns.some(pattern => pattern.test("ITEM 1. | BUSINESS")));
 });
 
+test("does not report a disclosure as absent when its filing section was unavailable", () => {
+  const findings = mod.buildResearchFindings(
+    ["Employee count and workforce"],
+    [{ key: "business", title: "Business", content: null }],
+    "https://www.sec.gov/Archives/edgar/data/104169/000010416926000055/wmt-20260131.htm"
+  );
+  assert.equal(findings[0].status, "not_searched");
+  assert.match(findings[0].explanation, /not searched/i);
+});
+
 test("recognises Walmart's scaled associate count in workforce findings", () => {
   const findings = mod.buildResearchFindings(
     ["Employee count and workforce"],
