@@ -16,8 +16,15 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 22.12.0
-      - name: Install dependencies
-        run: npm install
+      - name: Generate dependency lockfile for review
+        run: npm install --package-lock-only
+      - name: Upload generated dependency lockfile
+        uses: actions/upload-artifact@v4
+        with:
+          name: dependency-lockfile
+          path: package-lock.json
+      - name: Install dependencies from lockfile
+        run: npm ci
       - name: Audit dependencies for high-severity vulnerabilities
         run: npm audit --audit-level=high
       - name: Test filing parser
@@ -42,8 +49,13 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 22.12.0
-      - name: Install dependencies
-        run: npm install
+      - name: Download generated dependency lockfile
+        uses: actions/download-artifact@v4
+        with:
+          name: dependency-lockfile
+          path: .
+      - name: Install dependencies from lockfile
+        run: npm ci
       - name: Exercise CorpTrace against live SEC filings
         run: npm run test:live --workspace @corptrace/api
         env:
