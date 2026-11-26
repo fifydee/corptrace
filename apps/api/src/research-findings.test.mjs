@@ -23,6 +23,41 @@ test("matches real SEC filing heading punctuation used by issuers", () => {
   assert.ok(business?.patterns.some(pattern => pattern.test("ITEM 1. | BUSINESS")));
 });
 
+test("anchors Item 1 heading detection and rejects body-text cross references", () => {
+  const business = mod.filingTopics.find(topic => topic.key === "business");
+  const reference = "Our international operations are subject to risks inherent in carrying on business in other countries. See the Item 1A. Risk Factors and Item 1. Business sections.";
+  assert.ok(business?.patterns.some(pattern => pattern.test("ITEM 1. | BUSINESS |")));
+  assert.equal(business?.patterns.some(pattern => pattern.test(reference)), false);
+});
+
+test("searches Item 2 properties for headquarters disclosures", () => {
+  const properties = mod.filingTopics.find(topic => topic.key === "properties");
+  assert.ok(properties?.patterns.some(pattern => pattern.test("ITEM 2. | PROPERTIES")));
+  const findings = mod.buildResearchFindings(
+    ["Headquarters and registered locations"],
+    [{ key: "properties", title: "Properties and principal locations", content: "Our global headquarters are located in New York City." }],
+    "https://www.sec.gov/Archives/edgar/data/78003/000007800326000026/pfe-20251231.htm"
+  );
+  assert.equal(findings[0].status, "disclosed_in_filing");
+  assert.match(findings[0].evidence[0].excerpt, /New York City/);
+});
+
+test("avoids generic business references as company overviews and non-specific operation references as geographic facts", () => {
+  const overview = mod.buildResearchFindings(
+    ["Company overview and history"],
+    [{ key: "business", title: "Business", content: "Our business is conducted in intensely competitive and highly regulated markets." }],
+    "https://www.sec.gov/Archives/edgar/data/78003/000007800326000026/pfe-20251231.htm"
+  );
+  assert.equal(overview[0].status, "not_found_in_filing");
+
+  const geography = mod.buildResearchFindings(
+    ["Operating regions and countries"],
+    [{ key: "business", title: "Business", content: "We operate in an industry with rapid technological advances. A former executive oversaw sales and operations in the Americas." }],
+    "https://www.sec.gov/Archives/edgar/data/1571996/000157199626000008/dell-20260130.htm"
+  );
+  assert.equal(geography[0].status, "not_found_in_filing");
+});
+
 test("does not report a disclosure as absent when its filing section was unavailable", () => {
   const findings = mod.buildResearchFindings(
     ["Employee count and workforce"],
