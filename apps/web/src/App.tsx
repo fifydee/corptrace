@@ -158,26 +158,38 @@ function App() {
           <h2>SEC-reported financial metrics</h2><p>Each available figure below is traceable to an identified SEC filing and is verified as reported by the company. Comparability across companies and accounting treatments is assessed separately.</p>
           <div className="metric-grid">{metrics.metrics.map((m,i)=><article key={m?.metric ?? i} className="metric-card"><small>{m?.label ?? "Metric unavailable"}</small>{m ? <><strong>{money(m.value,m.unit)}</strong><span>{m.periodStart ? `${m.periodStart} to ${m.periodEnd}` : `As at ${m.periodEnd}`}</span><span>{m.form} · Filed {m.filedAt}</span><a href={m.filingUrl} target="_blank" rel="noreferrer">View official SEC filing <ArrowUpRight size={13}/></a><em className="verified-label"><ShieldCheck size={13}/> Verified · SEC-reported</em><small>{m.verificationBasis}</small></> : <><strong>Unavailable</strong><span>No matching standard US-GAAP annual fact found.</span></>}</article>)}</div>
         </>}
-        {narrative?.officialSources && <section className="filing-research official-sources">
-          <div className="filing-research-head"><div><label>COMPANY PROFILE · MULTI-SOURCE RESEARCH</label><h2>What this company does and where it operates</h2><p>Web research across company-published information, regulator sources and established business publications · Retrieved {new Date(narrative.officialSources.retrievedAt).toLocaleString()}</p></div></div>
-          <div className="extraction-note"><ShieldCheck size={16}/>{narrative.officialSources.notice}</div>
-          {narrative.officialSources.overview && <p className="company-overview">{narrative.officialSources.overview}</p>}
-          {narrative.officialSources.facts.length > 0 && <div className="metric-grid profile-facts">{narrative.officialSources.facts.map(fact=><article className="metric-card" key={fact.key}><small>{fact.label}</small><strong>{fact.value}</strong><span>{fact.sourceType.replace("_"," ")} · {fact.sourceTitle}</span><a href={fact.sourceUrl} target="_blank" rel="noreferrer">View supporting source <ArrowUpRight size={12}/></a><small>{fact.evidence}</small></article>)}</div>}
-          <h3>Source material and supporting excerpts</h3>
-          {narrative.officialSources.sources.length ? <div className="filing-sections">{narrative.officialSources.sources.map((source,index)=><article key={source.url+index}>
-            <div><h3>{source.title}</h3><span className="extraction-status">{source.sourceType.replace("_"," ")} · Retrieved {new Date(source.retrievedAt).toLocaleDateString()}</span></div>
-            <p><b>Source:</b> {source.domain} · <a href={source.url} target="_blank" rel="noreferrer">Open original page <ArrowUpRight size={12}/></a></p>
-            {source.evidence.map((item,i)=><blockquote key={i}><b>{item.heading} · extracted text block {item.paragraph}</b><p>{item.excerpt}</p></blockquote>)}
-          </article>)}</div> : <p className="empty-section">No relevant pages could be retrieved in this search. Try again later; publisher access and search indexing can limit results.</p>}
+        {narrative?.officialSources && <section className="company-profile">
+          <div className="profile-heading"><div><label>COMPANY PROFILE</label><h2>Get to know {company.companyName}</h2><p>A clear summary of the company, its footprint, offerings and workforce, based on the sources reviewed.</p></div><a href={narrative.documentUrl} target="_blank" rel="noreferrer">View official annual filing <ArrowUpRight size={13}/></a></div>
+          {(() => {
+            const facts = narrative.officialSources?.facts ?? [];
+            const fact = (key: string) => facts.find(item => item.key === key);
+            const business = fact("business");
+            const founded = fact("founded");
+            const headquarters = fact("headquarters");
+            const countries = fact("countries");
+            const employees = fact("employees");
+            const offerings = facts.filter(item => /products|services|solutions|segments/i.test(item.evidence + " " + item.value));
+            const sentence = (value: string) => value ? value.trim().replace(/^([a-z])/, letter => letter.toUpperCase()).replace(/\s+/g, " ") : "";
+            const sourceLink = (item?: typeof facts[number]) => item ? <a className="profile-source" href={item.sourceUrl} target="_blank" rel="noreferrer">Source <ArrowUpRight size={12}/></a> : null;
+            return <div className="profile-grid">
+              <article className="profile-card profile-overview"><span className="profile-number">01</span><div><h3>Company overview</h3>
+                {business || founded ? <p>{business ? sentence(business.value) + "." : ""}{founded ? ` Founded in ${founded.value}.` : ""} {founded ? sourceLink(founded) : sourceLink(business)}</p> : <p>Company history and founding details were not found in the sources reviewed.</p>}
+              </div></article>
+              <article className="profile-card"><span className="profile-number">02</span><div><h3>Headquarters &amp; operating regions</h3>
+                {headquarters ? <p><b>Headquarters</b><br/>{sentence(headquarters.value)} {sourceLink(headquarters)}</p> : <p>Headquarters location was not found in the sources reviewed.</p>}
+                {countries ? <p><b>Operating reach</b><br/>The company reports operations in {countries.value} countries. {sourceLink(countries)}</p> : <p>Number of operating countries and regional distribution were not disclosed in the sources reviewed.</p>}
+              </div></article>
+              <article className="profile-card"><span className="profile-number">03</span><div><h3>Products &amp; services</h3>
+                {offerings.length ? offerings.map(item=><p key={item.key}>{sentence(item.value)} {sourceLink(item)}</p>) : <p>The company's products, services and business offerings could not be reliably summarised from the extracted sources. See the official company information and annual filing for details.</p>}
+              </div></article>
+              <article className="profile-card"><span className="profile-number">04</span><div><h3>Employee count &amp; workforce</h3>
+                {employees ? <p><b>{employees.value} employees</b> reported in the source reviewed. {sourceLink(employees)}</p> : <p>Total employee count was not found in the sources reviewed.</p>}
+                <p><b>Gender and geographic distribution</b><br/>Not disclosed in the profile evidence currently retrieved. CorpTrace will show these breakdowns when a source provides reliable figures; it will not estimate them.</p>
+              </div></article>
+            </div>;
+          })()}
+          <p className="profile-method"><ShieldCheck size={14}/> Information is attributed to the linked source. Missing details mean they were not found in the sources reviewed, not that the company has never disclosed them.</p>
         </section>}
-        {narrative && <section className="filing-research"><div className="filing-research-head"><div><label>ANNUAL REPORT EXPLORER</label><h2>What the filing says about the business</h2><p>{narrative.form} · Filed {narrative.filedAt} · Reporting date {narrative.reportDate || "not supplied"}</p></div><a href={narrative.documentUrl} target="_blank" rel="noreferrer">Open complete filing <ArrowUpRight size={13}/></a></div><div className="extraction-note"><ShieldCheck size={16}/>{narrative.notice}</div>{narrative.findings && narrative.findings.length > 0 && <div className="selected-topics">{narrative.findings.map(item=><div key={item.topic}><span>{item.topic} · {item.status === "disclosed_in_filing" ? "Evidence found" : item.status === "not_found_in_filing" ? "Not disclosed in filing reviewed" : "External research needed"}</span><small>{item.explanation}</small>{item.evidence.map((evidence,index)=><blockquote key={index}><b>{evidence.section}</b><p>{evidence.excerpt}</p><a href={evidence.documentUrl} target="_blank" rel="noreferrer">Open source filing <ArrowUpRight size={12}/></a></blockquote>)}</div>)}</div>}<div className="filing-sections">{narrative.sections.filter(section => {
-          const selection = picked.join(" ").toLowerCase();
-          if (section.key === "risk") return selection.includes("risk");
-          if (section.key === "legal") return selection.includes("legal") || selection.includes("regulatory");
-          if (section.key === "management") return selection.includes("financial") || selection.includes("revenue") || selection.includes("profitability") || selection.includes("expenses");
-          if (section.key === "business") return selection.includes("company") || selection.includes("headquarters") || selection.includes("operating") || selection.includes("products") || selection.includes("offices") || selection.includes("employee") || selection.includes("workforce") || selection.includes("segment") || selection.includes("strategy") || selection.includes("investment") || selection.includes("acquisition") || selection.includes("swot");
-          return false;
-        }).map(section=><article key={section.key}><div><h3>{section.title}</h3><span className={section.dataStatus === "candidate" ? "extraction-status" : "unavailable-status"}>{section.dataStatus === "candidate" ? "Source extract · statement review required" : "Unavailable"}</span></div>{section.content ? <p>{section.content}</p> : <p className="empty-section">{section.note}</p>}<small>Source: {narrative.form} · <a href={narrative.documentUrl} target="_blank" rel="noreferrer">SEC filing</a></small></article>)}</div></section>}
         {picked.some(item => !["Financial summary","Revenue and income sources","Expenses and operating costs","Profitability and margins","Debt and financial position","Dividends and share buybacks"].includes(item)) && !narrative && <section className="research-followup"><h2>Your selected company research</h2><p>These topics are part of the configurable report. The latest annual filing could not be extracted automatically. You can still open the official filing below; the extraction service will report unavailable rather than inventing company details.</p><div className="selected-topics">{picked.filter(item=>!["Financial summary","Revenue and income sources","Expenses and operating costs","Profitability and margins","Debt and financial position","Dividends and share buybacks"].includes(item)).map(item=><div key={item}><span>{item}</span><small>Selected · filing extraction to be connected</small></div>)}</div></section>}
         {filings && <><h2>Recent filing history</h2><p>Recent SEC submissions for {filings.data.name ?? company.companyName}.</p><div className="filing-list">{(filings.data.filings?.recent?.form ?? []).map((form,i)=>({form,date:filings.data.filings?.recent?.filingDate?.[i] ?? "",report:filings.data.filings?.recent?.reportDate?.[i] ?? "",accession:filings.data.filings?.recent?.accessionNumber?.[i] ?? "",doc:filings.data.filings?.recent?.primaryDocument?.[i] ?? ""})).filter(x=>["10-K","20-F","40-F","10-Q","8-K"].includes(x.form)).slice(0,12).map((f,i)=>{const cik=company.cik.replace(/^0+/,"");const accession=f.accession.replace(/-/g,"");const url=`https://www.sec.gov/Archives/edgar/data/${cik}/${accession}/${f.doc}`;return <a key={f.accession+i} href={url} target="_blank" rel="noreferrer"><FileText size={17}/><span><b>{f.form}</b><small>Filed {f.date} · Reporting date {f.report || "not supplied"}</small></span><ArrowUpRight size={14}/></a>})}</div></>}
       </>}
