@@ -34,6 +34,14 @@ On the deployed Worker, open:
 
 Then open the Pages site, search for a company, select the correct SEC registrant and confirm that the research page displays filing dates, source links, metric status and annual-report extracts.
 
+## External company-source discovery
+
+Company profile discovery uses DuckDuckGo HTML search first, then Bing HTML and Bing RSS fallback. Search result URLs are normalized and validated as HTTPS before page retrieval; DuckDuckGo and Bing click-tracking redirects are unwrapped locally. Redirect destinations are revalidated before fetching. Individual page failures are logged and do not abort the rest of a company's source search.
+
+The live company-source QA workflow exercises the actual search and page-retrieval code for Dell, Walmart and Pfizer. It requires at least one official company-domain page, one established business-publication page, and source-attributed facts from external pages. The SEC filing fallback is deliberately excluded from those checks so it cannot mask a failed external search. The JSON artifact records retrieved URLs, source classifications, extracted evidence and fact provenance.
+
+Search providers may return anti-bot or rate-limit responses in hosted environments. The QA job treats a run without external pages as a failure and retains the diagnostics and report artifact; a successful SEC fallback alone is not considered a pass.
+
 ## Automated live SEC research QA
 
 Run the repeatable SEC integration check from the repository root:
