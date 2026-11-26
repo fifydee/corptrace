@@ -210,6 +210,8 @@ export function classify(url: string, companyName: string): CompanySource["sourc
   const terms = companyTerms(companyName);
   const compactName = terms.join("");
   return labels.some(label => label === compactName || terms.includes(label)) ? "company" : "other";
+}
+export function extractBlocks(html: string): Evidence[] {
   const blocks=[...html.matchAll(/<(h[1-6]|p|li)[^>]*>([\s\S]*?)<\/\1>/gi)];
   let heading="Page content", paragraph=0; const out:Evidence[]=[];
   const include=/\b(founded|established|headquarters|headquartered|principal executive office|employees|associates|workforce|team members|products|services|solutions|operates in|operates|across .* countries|more than [0-9,]+ countries|over [0-9,]+ countries|countries|offices|locations|facilities|manufacturing sites|people worldwide|business segments|what we do|retailer|retailers|biopharmaceutical|pharmaceutical|designs|develops|manufactures|sells|offers|distributes|supplies|delivers|markets|provides|serves customers|global technology|is a [a-z -]{2,60} company|is a global|is an international|is a leading|is a provider|is a manufacturer|is a retailer|is a technology|speciali[sz]es in)\b/i;
