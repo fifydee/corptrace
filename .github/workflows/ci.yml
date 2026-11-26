@@ -12,6 +12,8 @@ jobs:
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
@@ -35,6 +37,34 @@ jobs:
         run: npm exec --workspace @corptrace/api -- wrangler deploy --dry-run --outdir /tmp/corptrace-worker
       - name: Build web app
         run: npm run build --workspace @corptrace/web
+
+  commit-lockfile:
+    if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
+    needs: validate
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Check out PR branch
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref }}
+      - name: Download generated dependency lockfile
+        uses: actions/download-artifact@v4
+        with:
+          name: dependency-lockfile
+          path: .
+      - name: Commit lockfile if missing
+        run: |
+          if [ -f package-lock.json ] && git ls-files --error-unmatch package-lock.json >/dev/null 2>&1; then
+            echo "package-lock.json is already committed"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add package-lock.json
+          git commit -m "Add reproducible npm dependency lockfile"
+          git push origin "HEAD:${GITHUB_HEAD_REF}"
 
   live-sec-qa:
     needs: validate
