@@ -57,12 +57,12 @@ export function classify(url: string, companyName: string): CompanySource["sourc
   return companyTerms(companyName).some(term => labels.some(label => label === term)) ? "company" : "other";
 }
 export function extractBlocks(html: string): Evidence[] {
-  const blocks=[...html.matchAll(/<(h[1-6]|p|li)[^>]*>([\\s\\S]*?)<\\/\\1>/gi)];
+  const blocks=[...html.matchAll(/<(h[1-6]|p|li)[^>]*>([\s\S]*?)<\/\1>/gi)];
   let heading="Page content", paragraph=0; const out:Evidence[]=[];
-  const include=/\\b(founded|established|headquarters|headquartered|principal executive office|employees|workforce|team members|products|services|solutions|operates in|countries|offices|locations|facilities|manufacturing sites|people worldwide|business segments|what we do|designs|manufactures|sells|provides|serves customers)\\b/i;
-  const exclude=/\\b(stock[- ]based compensation|stock incentive plan|share[- ]based compensation|principal accountant fees|consolidated financial statements|revenue allocated|income taxes|deferred tax|pension plan|retirement plan|fair value|earnings per share|net income|accounts receivable|lease liabilities|debt maturity|interest rate|share repurchase|dividend|audit fees|related party|financial instruments|segment operating income)\\b/i;
+  const include=/\b(founded|established|headquarters|headquartered|principal executive office|employees|workforce|team members|products|services|solutions|operates in|countries|offices|locations|facilities|manufacturing sites|people worldwide|business segments|what we do|designs|manufactures|sells|provides|serves customers)\b/i;
+  const exclude=/\b(stock[- ]based compensation|stock incentive plan|share[- ]based compensation|principal accountant fees|consolidated financial statements|revenue allocated|income taxes|deferred tax|pension plan|retirement plan|fair value|earnings per share|net income|accounts receivable|lease liabilities|debt maturity|interest rate|share repurchase|dividend|audit fees|related party|financial instruments|segment operating income)\b/i;
   for(const block of blocks){
-    const tag=block[1].toLowerCase(), t=textOf(block[2]).replace(/\\s+/g," ").trim(); if(!t) continue;
+    const tag=block[1].toLowerCase(), t=textOf(block[2]).replace(/\s+/g," ").trim(); if(!t) continue;
     if(tag.startsWith("h")){heading=t.slice(0,160);continue;}
     paragraph++;
     if(t.length<65 || t.length>1800 || !include.test(t) || exclude.test(heading+" "+t)) continue;
