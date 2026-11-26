@@ -35,10 +35,10 @@ export function textOf(html: string): string {
 export function cleanUrl(href: string, base: string): string | null {
   try {
     const u = new URL(href, base);
-    if (u.protocol !== "https:" || /\.(zip|exe|dmg|mp4|jpg|png)(\?|$)/i.test(u.pathname)) return null;
+    if (u.protocol !== "https:" || u.username || u.password || /^(localhost|127(?:\.\d{1,3}){3}|0\.0\.0\.0|\[::1\])$/i.test(u.hostname) || /\.(local|internal)$/i.test(u.hostname) || /\.(zip|exe|dmg|mp4|jpg|png)(\?|$)/i.test(u.pathname)) return null;
     if (u.hostname.includes("duckduckgo.com")) {
       const target = u.searchParams.get("uddg");
-      if (target) return cleanUrl(decodeURIComponent(target), base);
+      if (target) return cleanUrl(target, base);
     }
     return u.toString();
   } catch { return null; }
@@ -142,7 +142,7 @@ export async function findOfficialCompanySources(companyName:string, selectedTop
     try{
       const response=await fetch(candidate.url,{headers:{"User-Agent":"Mozilla/5.0 (compatible; CorpTraceResearch/2.0)","Accept":"text/html,application/xhtml+xml"},redirect:"follow",signal:AbortSignal.timeout(10000)});
       if(!response.ok || !(response.headers.get("content-type")??"").includes("text/html"))continue;
-      const url=response.url||candidate.url, html=(await response.text()).slice(0,2_000_000), pageText=textOf(html);
+      const url=cleanUrl(response.url||candidate.url,candidate.url); if(!url)continue; const html=(await response.text()).slice(0,2_000_000), pageText=textOf(html);
       const title=decode(html.match(/<title[^>]*>([\s\S]*?)<\/title>/i)?.[1]??candidate.title).replace(/<[^>]+>/g," ").trim().slice(0,180);
       const hay=normalise(title+" "+pageText.slice(0,12000)), matched=terms.filter(t=>hay.includes(t)).length;
       if(matched===0)continue;
