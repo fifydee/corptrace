@@ -18,8 +18,13 @@ export function decode(value: string): string {
 }
 export function textOf(html: string): string {
   return decode(html.replace(/<script[\s\S]*?<\/script>/gi, " ").replace(/<style[\s\S]*?<\/style>/gi, " ")
-    .replace(/<noscript[\s\S]*?<\/noscript>/gi, " ").replace(/<\/(p|li|h[1-6]|tr|section|article|div)>/gi, "\n")
-    .replace(/<[^>]+>/g, " ").replace(/[\t\r ]+/g, " ").replace(/\n\s+/g, "\n").replace(/\n{2,}/g, "\n").trim());
+    .replace(/<noscript[\s\S]*?<\/noscript>/gi, " ").replace(/<\/(p|li|h[1-6]|tr|section|article|div)>/gi, "
+")
+    .replace(/<[^>]+>/g, " ").replace(/[\t\r ]+/g, " ").replace(/
+\s+/g, "
+").replace(/
+{2,}/g, "
+").trim());
 }
 export function cleanUrl(href: string, base: string): string | null {
   try {
@@ -39,7 +44,8 @@ async function searchWeb(query: string): Promise<Array<{title:string;url:string;
   const html = await response.text();
   const results: Array<{title:string;url:string;snippet:string}> = [];
   const matches = [...html.matchAll(/<div class="result[^"]*"[^>]*>([\s\S]*?)<\/div>\s*<\/div>/gi)];
-  const source = matches.length ? matches.map(m=>m[1]).join("\n") : html;
+  const source = matches.length ? matches.map(m=>m[1]).join("
+") : html;
   for (const m of source.matchAll(/<a[^>]+class="result__a"[^>]+href="([^"]+)"[^>]*>([\s\S]*?)<\/a>/gi)) {
     const url = cleanUrl(decode(m[1]), endpoint); if (!url || results.some(x=>x.url===url)) continue;
     const after = source.slice((m.index ?? 0), (m.index ?? 0)+2400);
@@ -59,16 +65,17 @@ export function classify(url: string, companyName: string): CompanySource["sourc
 export function extractBlocks(html: string): Evidence[] {
   const blocks=[...html.matchAll(/<(h[1-6]|p|li)[^>]*>([\s\S]*?)<\/\1>/gi)];
   let heading="Page content", paragraph=0; const out:Evidence[]=[];
-  const include=/\b(founded|established|headquarters|headquartered|principal executive office|employees|workforce|team members|products|services|solutions|operates in|countries|offices|locations|facilities|manufacturing sites|people worldwide|business segments|what we do|designs|manufactures|sells|provides|serves customers)\b/i;
-  const exclude=/\b(stock[- ]based compensation|stock incentive plan|share[- ]based compensation|principal accountant fees|consolidated financial statements|revenue allocated|income taxes|deferred tax|pension plan|retirement plan|fair value|earnings per share|net income|accounts receivable|lease liabilities|debt maturity|interest rate|share repurchase|dividend|audit fees|related party|financial instruments|segment operating income)\b/i;
+  const include=/\b(founded|established|headquarters|headquartered|principal executive office|employees|workforce|team members|products|services|solutions|operates in|countries|offices|locations|facilities|manufacturing sites|people worldwide|business segments|what we do|designs|manufactures|sells|provides|serves customers|is a global|is an international|is a leading|is a provider|is a manufacturer|is a retailer|is a technology|speciali[sz]es in)\b/i;
+  const exclude=/\b(stock[- ]based compensation|stock incentive plan|share[- ]based compensation|principal accountant fees|consolidated financial statements|revenue allocated|income taxes|deferred tax|pension plan|retirement plan|fair value|earnings per share|net income|accounts receivable|lease liabilities|debt maturity|interest rate|share repurchase|dividend|audit fees|related party|financial instruments|segment operating income|weighted average|unrecognized compensation|vesting period|tax provision|effective tax rate|share-based awards|stock options|restricted stock units|defined benefit|defined contribution|cash flows from|depreciation and amortization|impairment charge|goodwill|intangible assets|operating lease|finance lease)\b/i;
   for(const block of blocks){
     const tag=block[1].toLowerCase(), t=textOf(block[2]).replace(/\s+/g," ").trim(); if(!t) continue;
     if(tag.startsWith("h")){heading=t.slice(0,160);continue;}
     paragraph++;
     if(t.length<55 || t.length>1800 || !include.test(t) || exclude.test(heading+" "+t)) continue;
     if(/^the following table|^see (the )?table|^for additional information/i.test(t)) continue;
-    const sentences=t.split(/(?<=[.!?])\s+(?=[A-Z0-9])/).filter(sentence => include.test(sentence) && !exclude.test(sentence));
-    if(!sentences.length) continue;\n    const concise=sentences.slice(0,3).join(" ").slice(0,720);
+    const sentences=t.split(/(?<=[.!?])\s+(?=[A-Z0-9])/).filter(sentence => include.test(sentence) && !exclude.test(sentence) && !/^the following table|^see (the )?table/i.test(sentence));
+    if(!sentences.length) continue;
+    const concise=sentences.slice(0,3).join(" ").slice(0,720);
     const cleaned=concise.charAt(0).toUpperCase()+concise.slice(1);
     out.push({heading,paragraph,excerpt:cleaned});
     if(out.length>=36) break;
@@ -104,7 +111,6 @@ export async function findOfficialCompanySources(companyName:string, selectedTop
     ...(wants("products","services","business segments") ? [`${qName} official products services solutions business segments`,`${qName} annual report products services offerings`] : []),
     ...(wants("employee","workforce","gender","nationalities") ? [`${qName} latest annual report employee headcount workforce geography gender`,`${qName} official workforce employees by region diversity report`] : []),
     ...(wants("financial","revenue","profit","income") ? [`${qName} latest annual report financial results revenue profit investor relations`] : []),
-    ...(wants("overview","history","company profile") ? [`${qName} official company profile Reuters Forbes Bloomberg`] : []),
   ];
   const resultSets=await Promise.all(queries.map(q=>searchWeb(q).catch(()=>[])));
   const candidates=resultSets.flat().filter((r,i,a)=>a.findIndex(x=>x.url===r.url)===i)
