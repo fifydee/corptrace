@@ -3,6 +3,7 @@ type OfficialSource = {
   url: string;
   domain: string;
   pageType: string;
+  identityCheck: "matched_company_name" | "not_confirmed";
   retrievedAt: string;
   evidence: Array<{ heading: string; paragraph: number; excerpt: string }>;
 };
@@ -54,7 +55,7 @@ async function searchOfficialPages(query: string, terms: string[]): Promise<Arra
     const host = new URL(url).hostname.toLowerCase().replace(/^www\./, "");
     // Only retain domains containing a distinctive company-name token.
     if (!terms.some(term => host.split(".").some(label => label === term || label.startsWith(term)))) continue;
-    const title = plainText(match[2]).slice(0, 180);
+    const title = plainText(link[0].replace(/<\\/a>$/i, "").replace(/^<a\\b[^>]*>/i, "")).slice(0, 180);
     if (!results.some(item => item.url === url)) results.push({ title: title || host, url });
     if (results.length >= 8) break;
   }
@@ -116,7 +117,8 @@ export async function findOfficialCompanySources(companyName: string): Promise<{
         title: title || result.title,
         url: finalUrl,
         domain: finalHost,
-        pageType: /annual report|10-k/i.test(title + " " + finalUrl) ? "Annual report / filing page" : /investor|financial/i.test(title + " " + finalUrl) ? "Investor relations page" : "Official company page",
+        pageType: /annual report|10-k/i.test(title + " " + finalUrl) ? "Annual report / filing page" : /investor|financial/i.test(title + " " + finalUrl) ? "Investor relations page" : "Company website page",
+        identityCheck,
         retrievedAt: new Date().toISOString(),
         evidence,
       });
@@ -126,6 +128,6 @@ export async function findOfficialCompanySources(companyName: string): Promise<{
     sourceSearch: "internet_search_restricted_to_company_domain_candidates",
     retrievedAt: new Date().toISOString(),
     sources,
-    notice: "CorpTrace searched the web for company-domain pages and retained pages whose host matches a distinctive company-name token. Search-engine ranking alone is not proof of ownership; confirm the legal entity and page context. Paragraph numbers refer to the extracted HTML text-block order on the retrieved page, not printed PDF page numbers.",
+    notice: "Pages are retained only when the HTTPS host matches a distinctive company-name token and the page title or body contains the company name. This is an automated identity check, not independent proof of domain ownership. Paragraph numbers refer to extracted HTML text-block order, not printed PDF page numbers.",
   };
 }
