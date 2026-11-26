@@ -87,3 +87,52 @@ test("rejects stock-compensation paragraphs even when they mention employees and
   assert.equal(evidence.some(x => /stock-based compensation|stock incentive awards/i.test(x.excerpt)), false);
   assert.equal(evidence.some(x => /global technology company/i.test(x.excerpt)), true);
 });
+
+
+test("extracts relevant business descriptions and product offerings across retail and healthcare industries", () => {
+  const retailHtml = [
+    "<h2>About the Company</h2>",
+    "<p>Northstar Retail is a specialty retailer serving households through stores and digital channels.</p>",
+    "<h2>Products and Services</h2>",
+    "<p>The company offers home furnishings, appliances and delivery services to customers across the country.</p>",
+    "<h2>Financial Statements</h2>",
+    "<p>Net sales are presented by merchandise category and geographic region in the following table.</p>"
+  ].join("");
+  const healthcareHtml = [
+    "<h2>Company Overview</h2>",
+    "<p>MedNova is a biopharmaceutical company focused on developing medicines for patients with serious diseases.</p>",
+    "<h2>Products and Services</h2>",
+    "<p>The company develops and markets prescription medicines and provides patient support services.</p>",
+    "<h2>Stock-Based Compensation</h2>",
+    "<p>Restricted stock units are granted to eligible employees and vest over a four-year period.</p>"
+  ].join("");
+
+  const retailEvidence = mod.extractBlocks(retailHtml);
+  const healthcareEvidence = mod.extractBlocks(healthcareHtml);
+  assert.ok(retailEvidence.some(x => /specialty retailer/i.test(x.excerpt)));
+  assert.ok(retailEvidence.some(x => /offers home furnishings/i.test(x.excerpt)));
+  assert.ok(healthcareEvidence.some(x => /biopharmaceutical company/i.test(x.excerpt)));
+  assert.ok(healthcareEvidence.some(x => /develops and markets prescription medicines/i.test(x.excerpt)));
+  assert.equal(healthcareEvidence.some(x => /restricted stock units/i.test(x.excerpt)), false);
+});
+
+test("does not infer office counts from property descriptions across industries", () => {
+  const html = [
+    "<h2>Facilities</h2>",
+    "<p>MedNova operates research laboratories and manufacturing facilities across several regions.</p>",
+    "<p>The company leases 2.4 million square feet of laboratory, office and production space.</p>",
+    "<h2>Business Overview</h2>",
+    "<p>MedNova is a biopharmaceutical company developing innovative medicines for patients.</p>"
+  ].join("");
+  const evidence = mod.extractBlocks(html);
+  const facts = mod.extractFacts([{
+    title: "MedNova annual report",
+    url: "https://www.sec.gov/Archives/edgar/data/2/filing.htm",
+    domain: "sec.gov",
+    sourceType: "regulator",
+    retrievedAt: "2026-11-26T00:00:00.000Z",
+    evidence
+  }]);
+  assert.equal(facts.some(x => x.key === "offices"), false);
+  assert.ok(evidence.some(x => /research laboratories and manufacturing facilities/i.test(x.excerpt)));
+});
