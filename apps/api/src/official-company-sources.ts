@@ -11,17 +11,17 @@ const normalise = (s: string) => s.toLowerCase().replace(/&amp;/g, "&").replace(
 const companyTerms = (name: string) => normalise(name)
   .replace(/\b(incorporated|inc|corporation|corp|limited|ltd|plc|company|co)\b/g, "")
   .split(/\s+/).filter(x => x.length > 2).slice(0, 4);
-function decode(value: string): string {
+export function decode(value: string): string {
   return value.replace(/&nbsp;/gi, " ").replace(/&amp;/gi, "&").replace(/&quot;/gi, '"')
     .replace(/&#39;|&apos;/gi, "'").replace(/&#(\d+);/g, (_, n) => String.fromCodePoint(Number(n)))
     .replace(/&lt;/gi, "<").replace(/&gt;/gi, ">");
 }
-function textOf(html: string): string {
+export function textOf(html: string): string {
   return decode(html.replace(/<script[\s\S]*?<\/script>/gi, " ").replace(/<style[\s\S]*?<\/style>/gi, " ")
     .replace(/<noscript[\s\S]*?<\/noscript>/gi, " ").replace(/<\/(p|li|h[1-6]|tr|section|article|div)>/gi, "\n")
     .replace(/<[^>]+>/g, " ").replace(/[\t\r ]+/g, " ").replace(/\n\s+/g, "\n").replace(/\n{2,}/g, "\n").trim());
 }
-function cleanUrl(href: string, base: string): string | null {
+export function cleanUrl(href: string, base: string): string | null {
   try {
     const u = new URL(href, base);
     if (u.protocol !== "https:" || /\.(zip|exe|dmg|mp4|jpg|png)(\?|$)/i.test(u.pathname)) return null;
@@ -49,14 +49,14 @@ async function searchWeb(query: string): Promise<Array<{title:string;url:string;
   }
   return results;
 }
-function classify(url: string, companyName: string): CompanySource["sourceType"] {
+export function classify(url: string, companyName: string): CompanySource["sourceType"] {
   const host = new URL(url).hostname.toLowerCase();
   if (/(sec\.gov|companieshouse\.gov)/.test(host)) return "regulator";
   if (/(forbes\.com|businessinsider\.com|reuters\.com|bloomberg\.com|wsj\.com|ft\.com|cnbc\.com|apnews\.com|bbc\.com|theguardian\.com|fortune\.com|nytimes\.com)/.test(host)) return "business_publication";
   const labels = host.split(".");
-  return companyTerms(companyName).some(term => labels.some(label => label === term || label.startsWith(term))) ? "company" : "other";
+  return companyTerms(companyName).some(term => labels.some(label => label === term)) ? "company" : "other";
 }
-function extractBlocks(html: string): Evidence[] {
+export function extractBlocks(html: string): Evidence[] {
   const blocks=[...html.matchAll(/<(h[1-6]|p|li|td)[^>]*>([\s\S]*?)<\/\1>/gi)];
   let heading="Page content", paragraph=0; const out:Evidence[]=[];
   const pattern=/\b(founded|established|headquarters|headquartered|principal executive office|employees|workforce|team members|products|services|solutions|operates in|countries|offices|locations|facilities|manufacturing sites|employees worldwide|people worldwide|revenue|business segments|what we do)\b/i;
@@ -68,7 +68,7 @@ function extractBlocks(html: string): Evidence[] {
   }
   return out;
 }
-function extractFacts(sources: CompanySource[]): CompanyFact[] {
+export function extractFacts(sources: CompanySource[]): CompanyFact[] {
   const definitions: Array<{key:string;label:string;re:RegExp}>=[
     {key:"founded",label:"Founded",re:/\b(?:founded|established|incorporated)\s+(?:in\s+)?(?:in\s+)?(?:the year\s+)?(\d{4})\b/i},
     {key:"headquarters",label:"Headquarters",re:/\b(?:headquartered|headquarters(?: are| is| located)?|based)\s+(?:in|at)\s+([^.;]{3,100})/i},
