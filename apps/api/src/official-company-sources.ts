@@ -45,22 +45,32 @@ export function cleanUrl(href: string, base: string): string | null {
 }
 async function searchWeb(query: string): Promise<Array<{title:string;url:string;snippet:string}>> {
   const endpoint = "https://html.duckduckgo.com/html/?q=" + encodeURIComponent(query);
-  const response = await fetch(endpoint, {headers:{"User-Agent":"Mozilla/5.0 (compatible; CorpTraceResearch/2.0)","Accept":"text/html"}});
+  const response = await fetch(endpoint, {
+    headers: {
+      "User-Agent": "Mozilla/5.0 (compatible; CorpTraceResearch/2.0)",
+      "Accept": "text/html"
+    }
+  });
   if (!response.ok) return [];
   const html = await response.text();
   const results: Array<{title:string;url:string;snippet:string}> = [];
-  const matches = [...html.matchAll(/<div class="result[^"]*"[^>]*>([\s\S]*?)<\/div>\s*<\/div>/gi)];
-  const source = matches.length ? matches.map(m=>m[1]).join("
-") : html;
-  for (const m of source.matchAll(/<a[^>]+class="result__a"[^>]+href="([^"]+)"[^>]*>([\s\S]*?)<\/a>/gi)) {
-    const url = cleanUrl(decode(m[1]), endpoint); if (!url || results.some(x=>x.url===url)) continue;
-    const after = source.slice((m.index ?? 0), (m.index ?? 0)+2400);
-    const snip = after.match(/class="result__snippet"[^>]*>([\s\S]*?)<\/a>|class="result__snippet"[^>]*>([\s\S]*?)<\/div>/i);
-    results.push({title:textOf(m[2]).slice(0,180),url,snippet:textOf(snip?.[1] ?? snip?.[2] ?? "").slice(0,500)});
-    if(results.length>=10) break;
+  const matches = [...html.matchAll(/<div class="result[^"]*"[^>]*>([\\s\\S]*?)<\\/div>\\s*<\\/div>/gi)];
+  const source = matches.length ? matches.map(m => m[1]).join(String.fromCharCode(10)) : html;
+  for (const match of source.matchAll(/<a[^>]+class="result__a"[^>]+href="([^"]+)"[^>]*>([\\s\\S]*?)<\\/a>/gi)) {
+    const url = cleanUrl(decode(match[1]), endpoint);
+    if (!url || results.some(item => item.url === url)) continue;
+    const after = source.slice(match.index ?? 0, (match.index ?? 0) + 2400);
+    const snippetMatch = after.match(/class="result__snippet"[^>]*>([\\s\\S]*?)<\\/a>|class="result__snippet"[^>]*>([\\s\\S]*?)<\\/div>/i);
+    results.push({
+      title: textOf(match[2]).slice(0, 180),
+      url,
+      snippet: textOf(snippetMatch?.[1] ?? snippetMatch?.[2] ?? "").slice(0, 500)
+    });
+    if (results.length >= 10) break;
   }
   return results;
 }
+
 export function classify(url: string, companyName: string): CompanySource["sourceType"] {
   const host = new URL(url).hostname.toLowerCase();
   if (/(sec\.gov|companieshouse\.gov)/.test(host)) return "regulator";
