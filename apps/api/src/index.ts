@@ -420,9 +420,12 @@ function buildResearchFindings(
 function extractFilingProfileEvidence(
   sections: Array<{ title: string; content: string | null }>,
 ): Array<{ heading: string; paragraph: number; excerpt: string }> {
+  const priorityPattern = /\b(?:employees|associates|team members|people worldwide|headquarters|headquartered|principal executive offices|principal offices|conducted business in|operates? in|operates? across)\b/i;
   const include = /\b(?:founded|established|headquarters|headquartered|principal executive offices|principal offices|employees|associates|team members|people worldwide|conducted business in|operates? in|operates? across|offices|facilities|manufacturing plants|products and services|we develop|we manufacture|we provide|we offer|we sell|we distribute)\b/i;
   const exclude = /\b(?:stock[- ]based compensation|share[- ]based compensation|principal accountant fees|income taxes|deferred tax|pension plan|retirement plan|audit fees|tax provision|effective tax rate|related party|earnings per share|fair value|debt maturity|accounts receivable|cash flows from|goodwill|intangible assets)\b/i;
-  const evidence: Array<{ heading: string; paragraph: number; excerpt: string }> = [];
+  const priority: Array<{ heading: string; paragraph: number; excerpt: string }> = [];
+  const general: Array<{ heading: string; paragraph: number; excerpt: string }> = [];
+  let paragraph = 0;
   for (const section of sections) {
     const sentences = (section.content ?? "")
       .split(/(?<=[.!?])\s+|\n+/)
@@ -430,15 +433,11 @@ function extractFilingProfileEvidence(
       .filter(sentence => sentence.length >= 30 && sentence.length <= 1800);
     for (const sentence of sentences) {
       if (!include.test(sentence) || exclude.test(sentence)) continue;
-      evidence.push({
-        heading: section.title,
-        paragraph: evidence.length + 1,
-        excerpt: sentence.slice(0, 720),
-      });
-      if (evidence.length >= 36) return evidence;
+      const item = { heading: section.title, paragraph: ++paragraph, excerpt: sentence.slice(0, 720) };
+      (priorityPattern.test(sentence) ? priority : general).push(item);
     }
   }
-  return evidence;
+  return [...priority, ...general].slice(0, 120);
 }
 
 async function getCompanyResearch(cik: string, userAgent: string, selectedTopics: string[] = []): Promise<Response> {
