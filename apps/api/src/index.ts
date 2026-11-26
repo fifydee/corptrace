@@ -259,10 +259,10 @@ type SubmissionPayload = {
   filings?: { recent?: FilingRecent };
 };
 const filingTopics = [
-  { key: "business", title: "Business overview, products and operating footprint", patterns: [/ITEM\s+1[-.\s:—–]+BUSINESS/i, /ITEM\s+1[.\s]+DESCRIPTION OF BUSINESS/i] },
+  { key: "business", title: "Business overview, products and operating footprint", patterns: [/ITEM\s+1[-.\s:—–]+BUSINESS/i, /ITEM\s+1[-.\s:—–]+DESCRIPTION OF BUSINESS/i] },
   { key: "risk", title: "Risk factors", patterns: [/ITEM\s+1A[-.\s:—–]+RISK FACTORS/i] },
   { key: "legal", title: "Legal proceedings", patterns: [/ITEM\s+3[-.\s:—–]+LEGAL PROCEEDINGS/i] },
-  { key: "management", title: "Management discussion and financial performance", patterns: [/ITEM\s+7[-.\s:—–]+MANAGEMENT[’']?S?\s+DISCUSSION/i, /ITEM\s+7[.\s]+MANAGEMENT’S DISCUSSION/i] },
+  { key: "management", title: "Management discussion and financial performance", patterns: [/ITEM\s+7[-.\s:—–]+MANAGEMENT[’']?S?\s+DISCUSSION/i, /ITEM\s+7[-.\s:—–]+MANAGEMENT’S DISCUSSION/i] },
   { key: "controls", title: "Controls and procedures", patterns: [/ITEM\s+9A[-.\s:—–]+CONTROLS/i] },
 ];
 const researchTopicSectionMap: Record<string, string[]> = {
