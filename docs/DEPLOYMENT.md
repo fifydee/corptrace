@@ -40,7 +40,7 @@ Company profile discovery uses DuckDuckGo HTML search first, then Bing HTML and 
 
 The live company-source QA workflow exercises the actual search and page-retrieval code for Dell, Walmart and Pfizer. It requires at least one official company-domain page, one established business-publication page, and source-attributed facts from external pages. The SEC filing fallback is deliberately excluded from those checks so it cannot mask a failed external search. The JSON artifact records retrieved URLs, source classifications, extracted evidence and fact provenance.
 
-Search providers may return anti-bot or rate-limit responses in hosted environments. The QA job treats a run without external pages as a failure and retains the diagnostics and report artifact; a successful SEC fallback alone is not considered a pass.
+Search providers may return anti-bot or rate-limit responses in hosted environments. Search results are canonicalized and click-tracking redirects are unwrapped before retrieval. When a publisher blocks page retrieval, a sufficiently descriptive search-index snippet can be retained as evidence and is explicitly labeled as a search-result snippet rather than a page extraction. Facts from unclassified third-party sites are excluded, source-specific fact conflicts are retained, and the latest SEC filing is prioritized for the primary profile summary. The QA job treats a run without external pages as a failure and retains diagnostics and the report artifact; a successful SEC fallback alone is not considered a pass.
 
 ## Automated live SEC research QA
 
