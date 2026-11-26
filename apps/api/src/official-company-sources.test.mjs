@@ -26,6 +26,16 @@ test("parses DuckDuckGo result links when href and class attributes vary in orde
   assert.match(results[0].snippet, /global technology company/);
 });
 
+test("parses Google News RSS links with publisher attribution", () => {
+  const xml = `<rss><channel><item><title>Dell Technologies reports quarterly results - Reuters</title><link>https://news.google.com/rss/articles/abc123</link><description>Dell Technologies reported its latest quarterly results and discussed demand for AI servers.</description><source url="https://www.reuters.com">Reuters</source></item></channel></rss>`;
+  const results = mod.parseGoogleNewsRssResults(xml);
+  assert.equal(results.length, 1);
+  assert.equal(results[0].url, "https://news.google.com/rss/articles/abc123");
+  assert.equal(results[0].publisherUrl, "https://www.reuters.com/");
+  assert.match(results[0].snippet, /AI servers/);
+  assert.equal(mod.classify(results[0].publisherUrl, "Dell Technologies"), "business_publication");
+});
+
 test("parses Bing RSS result items as a second fallback", () => {
   const xml = `<rss><channel><item><title>Pfizer About</title><link>https://www.pfizer.com/about</link><description>Pfizer is a global biopharmaceutical company.</description></item></channel></rss>`;
   const results = mod.parseBingRssResults(xml);
