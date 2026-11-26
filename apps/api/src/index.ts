@@ -382,31 +382,45 @@ function buildResearchFindings(
 ): ResearchFinding[] {
   return selectedTopics.map(topic => {
     const keys = researchTopicSectionMap[topic] ?? [];
-    if (!keys.length) return {
-      topic, status: "not_searched", evidence: [],
-      explanation: "This topic is not covered by the annual filing search alone. A separate current-news or external-source search is required.",
-    };
+    if (!keys.length) {
+      return {
+        topic,
+        status: "not_searched",
+        evidence: [],
+        explanation: "This topic is not covered by the annual filing search alone. A separate current-news or external-source search is required.",
+      };
+    }
+
     const patterns = topicEvidencePatterns[topic] ?? [];
-    if (!patterns.length) return { topic, status: "not_searched", evidence: [], explanation: "No topic-specific evidence rule is configured yet. A broad filing section is not treated as an answer to this question." };
-    if (!patterns.length) return { topic, status: "not_searched", evidence: [], explanation: "No topic-specific evidence rule is configured yet. A broad filing section is not treated as an answer to this question." };
-    if (!patterns.length) return { topic, status: "not_searched", evidence: [], explanation: "No topic-specific evidence rule is configured yet. A broad filing section is not treated as an answer to this question." };
-    if (!patterns.length) return {
-      topic, status: "not_searched", evidence: [],
-      explanation: "No topic-specific evidence rule is configured yet. CorpTrace will not treat a broad filing section as an answer to this question.",
-    };
+    if (!patterns.length) {
+      return {
+        topic,
+        status: "not_searched",
+        evidence: [],
+        explanation: "No topic-specific evidence rule is configured yet. CorpTrace will not treat a broad filing section as an answer to this question.",
+      };
+    }
+
     const evidence: ResearchFinding["evidence"] = [];
-    for (const section of sections.filter(item => keys.includes(item.key) && item.content)) {
-      const lines = (section.content ?? "").split(/(?<=[.!?])\s+|
-+/).map(line => line.trim()).filter(Boolean);
+    const relevantSections = sections.filter(section => keys.includes(section.key) && section.content);
+    for (const section of relevantSections) {
+      const content = section.content ?? "";
+      const lines = content
+        .split(/(?<=[.!?])\\s+|\\n+/)
+        .map(line => line.trim())
+        .filter(Boolean);
+
       for (const line of lines) {
-        if (patterns.some(pattern => pattern.test(line))) {
-          const excerpt = line.slice(0, 700);
-          if (!evidence.some(item => item.excerpt === excerpt)) evidence.push({ section: section.title, excerpt, documentUrl });
-          if (evidence.length >= 4) break;
+        if (!patterns.some(pattern => pattern.test(line))) continue;
+        const excerpt = line.slice(0, 700);
+        if (!evidence.some(item => item.excerpt === excerpt)) {
+          evidence.push({ section: section.title, excerpt, documentUrl });
         }
+        if (evidence.length >= 4) break;
       }
       if (evidence.length >= 4) break;
     }
+
     return {
       topic,
       status: evidence.length ? "disclosed_in_filing" : "not_found_in_filing",
