@@ -18,13 +18,6 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 22.12.0
-      - name: Generate dependency lockfile for review
-        run: npm install --package-lock-only
-      - name: Upload generated dependency lockfile
-        uses: actions/upload-artifact@v4
-        with:
-          name: dependency-lockfile
-          path: package-lock.json
       - name: Install dependencies from lockfile
         run: npm ci
       - name: Audit dependencies for high-severity vulnerabilities
@@ -37,34 +30,6 @@ jobs:
         run: npm exec --workspace @corptrace/api -- wrangler deploy --dry-run --outdir /tmp/corptrace-worker
       - name: Build web app
         run: npm run build --workspace @corptrace/web
-
-  commit-lockfile:
-    if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
-    needs: validate
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
-    steps:
-      - name: Check out PR branch
-        uses: actions/checkout@v4
-        with:
-          ref: ${{ github.head_ref }}
-      - name: Download generated dependency lockfile
-        uses: actions/download-artifact@v4
-        with:
-          name: dependency-lockfile
-          path: .
-      - name: Commit lockfile if missing
-        run: |
-          if [ -f package-lock.json ] && git ls-files --error-unmatch package-lock.json >/dev/null 2>&1; then
-            echo "package-lock.json is already committed"
-            exit 0
-          fi
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add package-lock.json
-          git commit -m "Add reproducible npm dependency lockfile"
-          git push origin "HEAD:${GITHUB_HEAD_REF}"
 
   live-sec-qa:
     needs: validate
@@ -79,11 +44,6 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 22.12.0
-      - name: Download generated dependency lockfile
-        uses: actions/download-artifact@v4
-        with:
-          name: dependency-lockfile
-          path: .
       - name: Install dependencies from lockfile
         run: npm ci
       - name: Exercise CorpTrace against live SEC filings
