@@ -120,7 +120,7 @@ export function parseGoogleNewsRssResults(xml: string): Array<{ title: string; u
   }
   return results;
 }
-async function searchWeb(query: string): Promise<Array<{ title: string; url: string; snippet: string }>> {
+async function searchWeb(query: string): Promise<Array<{ title: string; url: string; snippet: string; publisherUrl?: string }>> {
   const headers = {
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120.0.0.0 Safari/537.36",
     "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
@@ -262,9 +262,10 @@ export async function findOfficialCompanySources(companyName:string, selectedTop
   for(const candidate of candidates){
     const sourceUrl=cleanUrl(candidate.url,candidate.url);
     if(!sourceUrl) continue;
-    const sourceType=classify(sourceUrl,companyName);
+    const publisherUrl=candidate.publisherUrl?cleanUrl(candidate.publisherUrl,candidate.publisherUrl):null;
+    const sourceType=classify(publisherUrl??sourceUrl,companyName);
     if(sourceType==="other") continue;
-    const domain=new URL(sourceUrl).hostname.toLowerCase().replace(/^www\./,"");
+    const domain=new URL(publisherUrl??sourceUrl).hostname.toLowerCase().replace(/^www\./,"");
     const snippetEvidence=()=>candidate.snippet.length>=50
       ? [{heading:"Search result snippet (page fetch unavailable)",paragraph:1,excerpt:candidate.snippet.slice(0,720)}]
       : [];
@@ -276,20 +277,23 @@ export async function findOfficialCompanySources(companyName:string, selectedTop
         if(evidence.length) sources.push({title:candidate.title,url:sourceUrl,domain,sourceType,retrievedAt:new Date().toISOString(),evidence,evidenceOrigin:"search_result_snippet"});
         continue;
       }
-      const url=cleanUrl(response.url||sourceUrl,sourceUrl); if(!url)continue;
+      const finalUrl=cleanUrl(response.url||sourceUrl,sourceUrl); if(!finalUrl)continue;
+      const finalType=classify(finalUrl,companyName);
+      const effectiveType=finalType==="other"?sourceType:finalType;
+      const effectiveUrl=finalType==="other"&&publisherUrl?sourceUrl:finalUrl;
       const html=(await response.text()).slice(0,2_000_000), pageText=textOf(html);
       const title=decode(html.match(/<title[^>]*>([\s\S]*?)<\/title>/i)?.[1]??candidate.title).replace(/<[^>]+>/g," ").trim().slice(0,180);
       const hay=normalise(title+" "+pageText.slice(0,12000)), matched=terms.filter(t=>hay.includes(t)).length;
       if(matched===0)continue;
       const evidence=extractBlocks(html);
-      const finalDomain=new URL(url).hostname.toLowerCase().replace(/^www\./,"");
+      const finalDomain=new URL(effectiveUrl).hostname.toLowerCase().replace(/^www\./,"");
       if(!evidence.length){
-        console.warn("CorpTrace external page yielded no evidence blocks",{url,title,contentLength:html.length,textLength:pageText.length});
+        console.warn("CorpTrace external page yielded no evidence blocks",{url:effectiveUrl,title,contentLength:html.length,textLength:pageText.length});
         const fallback=snippetEvidence();
-        if(fallback.length) sources.push({title:title||candidate.title,url,domain:finalDomain,sourceType,retrievedAt:new Date().toISOString(),evidence:fallback,evidenceOrigin:"search_result_snippet"});
+        if(fallback.length) sources.push({title:title||candidate.title,url:effectiveUrl,domain:finalDomain,sourceType:effectiveType,retrievedAt:new Date().toISOString(),evidence:fallback,evidenceOrigin:"search_result_snippet"});
         continue;
       }
-      sources.push({title:title||candidate.title,url,domain:finalDomain,sourceType,retrievedAt:new Date().toISOString(),evidence,evidenceOrigin:"retrieved_page"});
+      sources.push({title:title||candidate.title,url:effectiveUrl,domain:finalDomain,sourceType:effectiveType,retrievedAt:new Date().toISOString(),evidence,evidenceOrigin:"retrieved_page"});
     }catch(error){
       console.warn("CorpTrace external page retrieval failed",{url:sourceUrl,error:error instanceof Error?error.message:String(error)});
       const evidence=snippetEvidence();
