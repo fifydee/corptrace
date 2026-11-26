@@ -149,23 +149,25 @@ for (const company of companies) {
       if (!propertiesSection?.content) errors.push("Item 2 / Properties section was not extracted");
       if (runExternalSourceQa) {
         const discovered = body.officialSources;
+        const externalSources = (discovered?.sources ?? []).filter(source => source.url !== body.documentUrl);
+        const externalFacts = (discovered?.facts ?? []).filter(fact => fact.sourceUrl !== body.documentUrl);
         if (!discovered || discovered.sourceSearch === "skipped_in_live_sec_qa") {
           errors.push("External source discovery was not executed");
         } else {
-          if (!discovered.sources?.length) errors.push("No accessible external sources were retrieved");
-          if (!discovered.sources?.some(source => source.sourceType === "company")) {
-            errors.push("No official company-domain source was retrieved");
+          if (!externalSources.length) errors.push("Search returned no accessible non-SEC company or publication pages (provider: " + discovered.sourceSearch + ")");
+          if (!externalSources.some(source => source.sourceType === "company")) {
+            errors.push("No official company-domain page was retrieved");
           }
-          if (!discovered.sources?.some(source => ["regulator", "business_publication"].includes(source.sourceType))) {
-            errors.push("No regulator or established business-publication source was retrieved");
+          if (!externalSources.some(source => source.sourceType === "business_publication")) {
+            errors.push("No established business-publication page was retrieved");
           }
-          if (!discovered.facts?.length) errors.push("No source-attributed company profile facts were extracted");
-          for (const source of discovered.sources ?? []) {
+          if (!externalFacts.length) errors.push("No company profile facts were extracted from external pages");
+          for (const source of externalSources) {
             if (!/^https:\/\//i.test(source.url)) errors.push("Non-HTTPS external source returned: " + source.url);
             if (!source.evidence?.length) errors.push("External source has no extracted evidence: " + source.url);
           }
-          for (const fact of discovered.facts ?? []) {
-            if (!discovered.sources.some(source => source.url === fact.sourceUrl)) {
+          for (const fact of externalFacts) {
+            if (!externalSources.some(source => source.url === fact.sourceUrl)) {
               errors.push("External fact has no matching source: " + fact.key);
             }
             if (!fact.evidence || fact.evidence.length < 30) errors.push("External fact evidence is missing: " + fact.key);
@@ -206,10 +208,12 @@ for (const company of companies) {
       sectionCharactersReturned: body.sections?.find((section) => section.key === "business")?.content?.length ?? 0,
       workforceStatus: workforceFinding?.status ?? "missing",
       workforceEvidence: workforceFinding?.evidence?.map((item) => item.excerpt) ?? [],
-      externalSourceCount: body.officialSources?.sources?.length ?? 0,
-      externalSources: (body.officialSources?.sources ?? []).map(source => ({ title: source.title, url: source.url, domain: source.domain, sourceType: source.sourceType, evidence: source.evidence })),
-      externalSourceCount: body.officialSources?.sources?.length ?? 0,
-      externalSources: (body.officialSources?.sources ?? []).map(source => ({ title: source.title, url: source.url, domain: source.domain, sourceType: source.sourceType, evidence: source.evidence })),
+      externalSourceSearch: body.officialSources?.sourceSearch ?? null,
+      externalSourceCount: (body.officialSources?.sources ?? []).filter(source => source.url !== body.documentUrl).length,
+      externalSources: (body.officialSources?.sources ?? []).filter(source => source.url !== body.documentUrl).map(source => ({ title: source.title, url: source.url, domain: source.domain, sourceType: source.sourceType, evidence: source.evidence })),
+      externalSourceSearch: body.officialSources?.sourceSearch ?? null,
+      externalSourceCount: (body.officialSources?.sources ?? []).filter(source => source.url !== body.documentUrl).length,
+      externalSources: (body.officialSources?.sources ?? []).filter(source => source.url !== body.documentUrl).map(source => ({ title: source.title, url: source.url, domain: source.domain, sourceType: source.sourceType, evidence: source.evidence })),
       extractedProfileFacts: (body.officialSources?.facts ?? []).map((fact) => ({
         key: fact.key,
         value: fact.value,
