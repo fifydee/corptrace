@@ -116,6 +116,20 @@ test("extracts relevant business descriptions and product offerings across retai
   assert.equal(healthcareEvidence.some(x => /restricted stock units/i.test(x.excerpt)), false);
 });
 
+test("extracts Walmart-style associate counts as workforce facts", () => {
+  const html = "<h2>Human Capital</h2><p>Our business is delivered by approximately 2.1 million associates around the world, including 1.6 million associates in the U.S.</p>";
+  const evidence = mod.extractBlocks(html);
+  const facts = mod.extractFacts([{
+    title: "Walmart annual report",
+    url: "https://www.sec.gov/Archives/edgar/data/104169/filing.htm",
+    domain: "sec.gov",
+    sourceType: "regulator",
+    retrievedAt: "2026-11-26T00:00:00.000Z",
+    evidence
+  }]);
+  assert.equal(facts.find(x => x.key === "employees")?.value, "2.1 million");
+});
+
 test("does not infer office counts from property descriptions across industries", () => {
   const html = [
     "<h2>Facilities</h2>",
