@@ -1,0 +1,55 @@
+import test from "node:test";
+import assert from "node:assert/strict";
+import ts from "typescript";
+import { readFile } from "node:fs/promises";
+
+const source = await readFile(new URL("./official-company-sources.ts", import.meta.url), "utf8");
+const compiled = ts.transpileModule(source, {
+  compilerOptions: { module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ES2022 }
+}).outputText;
+const mod = await import("data:text/javascript;base64," + Buffer.from(compiled).toString("base64"));
+
+test("decodes HTML entities and preserves readable paragraph boundaries", () => {
+  assert.equal(mod.textOf("<p>Dell &amp; Co. has &#57;7,000 employees.</p><p>Second paragraph.</p>"),
+    "Dell & Co. has 97,000 employees.\nSecond paragraph.");
+});
+
+test("unwraps DuckDuckGo redirect links and rejects unsafe protocols", () => {
+  const target = "https://www.dell.com/about";
+  const redirect = "https://duckduckgo.com/l/?uddg=" + encodeURIComponent(target);
+  assert.equal(mod.cleanUrl(redirect, "https://html.duckduckgo.com/html/"), target);
+  assert.equal(mod.cleanUrl("http://example.com", "https://example.com"), null);
+});
+
+test("does not mistake a third-party domain containing a company token for the company itself", () => {
+  assert.equal(mod.classify("https://dell-careers.example.org/jobs", "Dell Technologies"), "other");
+  assert.equal(mod.classify("https://www.dell.com/about", "Dell Technologies"), "company");
+  assert.equal(mod.classify("https://www.sec.gov/Archives/edgar/data/1/filing.htm", "Dell Technologies"), "regulator");
+});
+
+test("extracts source-attributed company facts without treating facility square footage as office count", () => {
+  const html = [
+    "<h2>Company Overview</h2>",
+    "<p>Dell Technologies is a global technology company that designs and sells infrastructure solutions.</p>",
+    "<p>As of January 30, 2026, Dell Technologies had approximately 97,000 employees.</p>",
+    "<p>The company operates in over 170 countries.</p>",
+    "<p>Its global headquarters are located at One Dell Way, Round Rock, Texas.</p>",
+    "<h2>Properties</h2>",
+    "<p>The company owns and leases 18.2 million square feet of office, manufacturing and warehouse space worldwide.</p>"
+  ].join("");
+  const evidence = mod.extractBlocks(html);
+  const sources = [{
+    title: "Dell Technologies FY2026 Form 10-K",
+    url: "https://www.sec.gov/Archives/edgar/data/1/filing.htm",
+    domain: "sec.gov",
+    sourceType: "regulator",
+    retrievedAt: "2026-11-26T00:00:00.000Z",
+    evidence
+  }];
+  const facts = mod.extractFacts(sources);
+  assert.equal(facts.find(x => x.key === "employees")?.value, "97,000");
+  assert.equal(facts.find(x => x.key === "countries")?.value, "170");
+  assert.match(facts.find(x => x.key === "headquarters")?.value ?? "", /One Dell Way/);
+  assert.equal(facts.some(x => x.key === "offices"), false);
+  assert.equal(facts.some(x => x.key === "business"), false);
+});
