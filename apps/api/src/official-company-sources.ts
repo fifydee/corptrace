@@ -57,14 +57,19 @@ export function classify(url: string, companyName: string): CompanySource["sourc
   return companyTerms(companyName).some(term => labels.some(label => label === term)) ? "company" : "other";
 }
 export function extractBlocks(html: string): Evidence[] {
-  const blocks=[...html.matchAll(/<(h[1-6]|p|li|td)[^>]*>([\s\S]*?)<\/\1>/gi)];
+  const blocks=[...html.matchAll(/<(h[1-6]|p|li)[^>]*>([\\s\\S]*?)<\\/\\1>/gi)];
   let heading="Page content", paragraph=0; const out:Evidence[]=[];
-  const pattern=/\b(founded|established|headquarters|headquartered|principal executive office|employees|workforce|team members|products|services|solutions|operates in|countries|offices|locations|facilities|manufacturing sites|employees worldwide|people worldwide|revenue|business segments|what we do)\b/i;
+  const include=/\\b(founded|established|headquarters|headquartered|principal executive office|employees|workforce|team members|products|services|solutions|operates in|countries|offices|locations|facilities|manufacturing sites|people worldwide|business segments|what we do|designs|manufactures|sells|provides|serves customers)\\b/i;
+  const exclude=/\\b(stock[- ]based compensation|stock incentive plan|share[- ]based compensation|principal accountant fees|consolidated financial statements|revenue allocated|income taxes|deferred tax|pension plan|retirement plan|fair value|earnings per share|net income|accounts receivable|lease liabilities|debt maturity|interest rate|share repurchase|dividend|audit fees|related party|financial instruments|segment operating income)\\b/i;
   for(const block of blocks){
-    const tag=block[1].toLowerCase(), t=textOf(block[2]); if(!t) continue;
+    const tag=block[1].toLowerCase(), t=textOf(block[2]).replace(/\\s+/g," ").trim(); if(!t) continue;
     if(tag.startsWith("h")){heading=t.slice(0,160);continue;}
-    paragraph++; if(pattern.test(t) && t.length>35) out.push({heading,paragraph,excerpt:t.slice(0,1000)});
-    if(out.length>=28) break;
+    paragraph++;
+    if(t.length<65 || t.length>1800 || !include.test(t) || exclude.test(heading+" "+t)) continue;
+    if(/^the following table|^see (the )?table|^for additional information/i.test(t)) continue;
+    const cleaned=t.charAt(0).toUpperCase()+t.slice(1);
+    out.push({heading,paragraph,excerpt:cleaned.slice(0,1200)});
+    if(out.length>=36) break;
   }
   return out;
 }
@@ -83,21 +88,22 @@ export function extractFacts(sources: CompanySource[]): CompanyFact[] {
   }
   return [...found.values()];
 }
-export async function findOfficialCompanySources(companyName:string):Promise<{
+export async function findOfficialCompanySources(companyName:string, selectedTopics:string[] = []):Promise<{
   sourceSearch:string;retrievedAt:string;notice:string;sources:CompanySource[];facts:CompanyFact[];
   overview:string|null;
 }>{
   const terms=companyTerms(companyName), qName='"'+companyName+'"';
   if(!terms.length)return {sourceSearch:"not_run",retrievedAt:new Date().toISOString(),notice:"Company name unavailable.",sources:[],facts:[],overview:null};
+  const topicText=selectedTopics.join(" ").toLowerCase();
+  const wants=(...terms:string[])=>!selectedTopics.length || terms.some(term=>topicText.includes(term));
   const queries=[
-    `${qName} company overview founded headquarters what does it do`,
-    `${qName} official about us headquarters products services`,
-    `${qName} employees workforce number latest annual report`,
-    `${qName} offices locations countries worldwide official`,
-    `${qName} company profile Forbes Reuters Bloomberg employees headquarters`,
-    `${qName} annual report employees products services locations`,
-  ];
-  const resultSets=await Promise.all(queries.map(q=>searchWeb(q).catch(()=>[])));
+    ...(wants("overview","history","company profile") ? [`${qName} official company overview history founded what does it do`,`${qName} investor relations about company business description`] : []),
+    ...(wants("headquarters","operating regions","locations","countries","offices") ? [`${qName} official headquarters countries of operation offices locations facilities`,`${qName} annual report geographic locations offices facilities countries`] : []),
+    ...(wants("products","services","business segments") ? [`${qName} official products services solutions business segments`,`${qName} annual report products services offerings`] : []),
+    ...(wants("employee","workforce","gender","nationalities") ? [`${qName} latest annual report employee headcount workforce geography gender`,`${qName} official workforce employees by region diversity report`] : []),
+    ...(wants("financial","revenue","profit","income") ? [`${qName} latest annual report financial results revenue profit investor relations`] : []),
+    `${qName} company profile Reuters Forbes Bloomberg`,
+  ];  const resultSets=await Promise.all(queries.map(q=>searchWeb(q).catch(()=>[])));
   const candidates=resultSets.flat().filter((r,i,a)=>a.findIndex(x=>x.url===r.url)===i)
     .filter(r=>{const hay=normalise(r.title+" "+r.snippet+" "+r.url);return terms.some(t=>hay.includes(t));})
     .slice(0,18);
