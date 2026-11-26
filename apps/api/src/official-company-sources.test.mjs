@@ -146,6 +146,34 @@ test("extracts Pfizer-style employee disclosures from an annual filing", () => {
   assert.equal(facts.find(x => x.key === "employees")?.value, "75,000");
 });
 
+test("extracts headquarters from SEC principal-office wording and country counts from conducted-business wording", () => {
+  const factFor = (excerpt, key) => mod.extractFacts([{
+    title: "SEC annual report",
+    url: "https://www.sec.gov/Archives/edgar/data/1/filing.htm",
+    domain: "sec.gov",
+    sourceType: "regulator",
+    retrievedAt: "2026-11-26T00:00:00.000Z",
+    evidence: [{ heading: "Business", paragraph: 1, excerpt }]
+  }]).find(fact => fact.key === key);
+
+  assert.match(
+    factFor("The mailing address of our principal executive offices is One Dell Way, Round Rock, Texas 78682.", "headquarters")?.value ?? "",
+    /One Dell Way, Round Rock/
+  );
+  assert.match(
+    factFor("We maintain our principal offices in Bentonville, Arkansas.", "headquarters")?.value ?? "",
+    /Bentonville, Arkansas/
+  );
+  assert.match(
+    factFor("Our global headquarters are located in New York City.", "headquarters")?.value ?? "",
+    /New York City/
+  );
+  assert.equal(
+    factFor("Walmart International conducted business in 18 countries.", "countries")?.value,
+    "18"
+  );
+});
+
 test("does not infer office counts from property descriptions across industries", () => {
   const html = [
     "<h2>Facilities</h2>",
