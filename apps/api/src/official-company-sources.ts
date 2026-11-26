@@ -17,15 +17,20 @@ export function decode(value: string): string {
     .replace(/&lt;/gi, "<").replace(/&gt;/gi, ">");
 }
 export function textOf(html: string): string {
-  return decode(html.replace(/<script[\s\S]*?<\/script>/gi, " ").replace(/<style[\s\S]*?<\/style>/gi, " ")
-    .replace(/<noscript[\s\S]*?<\/noscript>/gi, " ").replace(/<\/(p|li|h[1-6]|tr|section|article|div)>/gi, "
-")
-    .replace(/<[^>]+>/g, " ").replace(/[\t\r ]+/g, " ").replace(/
-\s+/g, "
-").replace(/
-{2,}/g, "
-").trim());
+  return decode(
+    html
+      .replace(/<script[\\s\\S]*?<\\/script>/gi, " ")
+      .replace(/<style[\\s\\S]*?<\\/style>/gi, " ")
+      .replace(/<noscript[\\s\\S]*?<\\/noscript>/gi, " ")
+      .replace(/<\\/(p|li|h[1-6]|tr|section|article|div)>/gi, "\\n")
+      .replace(/<[^>]+>/g, " ")
+      .replace(/[\\t\\r ]+/g, " ")
+      .replace(/\\n\\s+/g, "\\n")
+      .replace(/\\n{2,}/g, "\\n")
+      .trim()
+  );
 }
+
 export function cleanUrl(href: string, base: string): string | null {
   try {
     const u = new URL(href, base);
