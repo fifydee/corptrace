@@ -64,7 +64,7 @@ test("recognises SEC Item headings split across table cells", () => {
 });
 
 test("retains workforce disclosures appearing later in long annual filing sections", () => {
-  const filler = Array.from({ length: 240 }, (_, index) =>
+  const filler = Array.from({ length: 700 }, (_, index) =>
     `The company continues to describe its business operations, products, services and markets in detail for annual reporting purposes. Disclosure paragraph ${index + 1}.`
   );
   const text = [
@@ -76,7 +76,7 @@ test("retains workforce disclosures appearing later in long annual filing sectio
     "This later risk disclosure must not be included in the business section."
   ].join("\n");
   const section = extractItemSection(text, [/ITEM\s+1[-.\s:|—–]+BUSINESS/i]);
-  assert.ok((section?.length ?? 0) > 14000);
+  assert.ok((section?.length ?? 0) > 80000);
   assert.match(section ?? "", /97,000 employees/);
   assert.doesNotMatch(section ?? "", /later risk disclosure/);
 });
