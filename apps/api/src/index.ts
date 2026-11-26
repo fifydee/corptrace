@@ -259,17 +259,18 @@ type SubmissionPayload = {
   filings?: { recent?: FilingRecent };
 };
 const filingTopics = [
-  { key: "business", title: "Business overview, products and operating footprint", patterns: [/ITEM\s+1[-.\s:|—–]+BUSINESS/i, /ITEM\s+1[-.\s:|—–]+DESCRIPTION OF BUSINESS/i] },
-  { key: "risk", title: "Risk factors", patterns: [/ITEM\s+1A[-.\s:|—–]+RISK FACTORS/i] },
-  { key: "legal", title: "Legal proceedings", patterns: [/ITEM\s+3[-.\s:|—–]+LEGAL PROCEEDINGS/i] },
-  { key: "management", title: "Management discussion and financial performance", patterns: [/ITEM\s+7[-.\s:|—–]+MANAGEMENT[’']?S?\s+DISCUSSION/i, /ITEM\s+7[-.\s:|—–]+MANAGEMENT’S DISCUSSION/i] },
-  { key: "controls", title: "Controls and procedures", patterns: [/ITEM\s+9A[-.\s:|—–]+CONTROLS/i] },
+  { key: "business", title: "Business overview, products and operating footprint", patterns: [/^\s*ITEM\s+1[-.\s:|—–]+BUSINESS/i, /^\s*ITEM\s+1[-.\s:|—–]+DESCRIPTION OF BUSINESS/i] },
+  { key: "properties", title: "Properties and principal locations", patterns: [/^\s*ITEM\s+2[-.\s:|—–]+PROPERTIES/i] },
+  { key: "risk", title: "Risk factors", patterns: [/^\s*ITEM\s+1A[-.\s:|—–]+RISK FACTORS/i] },
+  { key: "legal", title: "Legal proceedings", patterns: [/^\s*ITEM\s+3[-.\s:|—–]+LEGAL PROCEEDINGS/i] },
+  { key: "management", title: "Management discussion and financial performance", patterns: [/^\s*ITEM\s+7[-.\s:|—–]+MANAGEMENT[’']?S?\s+DISCUSSION/i, /^\s*ITEM\s+7[-.\s:|—–]+MANAGEMENT’S DISCUSSION/i] },
+  { key: "controls", title: "Controls and procedures", patterns: [/^\s*ITEM\s+9A[-.\s:|—–]+CONTROLS/i] },
 ];
 const researchTopicSectionMap: Record<string, string[]> = {
   "Company overview and history": ["business"],
-  "Headquarters and registered locations": ["business"],
+  "Headquarters and registered locations": ["business", "properties"],
   "Operating regions and countries": ["business"],
-  "Offices and facilities": ["business"],
+  "Offices and facilities": ["business", "properties"],
   "Products and services": ["business"],
   "Business segments and revenue mix": ["business", "management"],
   "Financial summary": ["management"],
@@ -324,9 +325,9 @@ type ResearchFinding = {
 };
 
 const topicEvidencePatterns: Record<string, RegExp[]> = {
-  "Company overview and history": [/founded|incorporated|established|company overview|our business/i],
-  "Headquarters and registered locations": [/headquartered|principal executive offices|principal office|registered office/i],
-  "Operating regions and countries": [/operate[s]? in|operations? in|conduct(?:s|ed) business in|serves customers in|across .* countries|countries and regions|geographic( al)? areas/i],
+  "Company overview and history": [/\b(?:founded|incorporated|established)\b|^company overview$|^about (?:the )?company$|\b(?:is|are)\s+(?:a|an)\s+[^.!?]{5,140}\b(?:company|provider|manufacturer|retailer|biopharmaceutical|pharmaceutical|technology)\b|\bwe\s+(?:design|develop|manufacture|sell|provide|offer|distribute)\b/i],
+  "Headquarters and registered locations": [/headquartered|headquarters|principal executive offices|principal offices|registered office/i],
+  "Operating regions and countries": [/\b(?:conduct(?:s|ed) business in|operate[s]? in|operate[s]? across|across)\s+(?:(?:more than|over|approximately)\s+)?[0-9,]+\s+countries\b|\b(?:our|the company’s|company’s)\s+(?:operations|business)\s+(?:are\s+)?(?:in|across)\s+(?:the\s+)?(?:U\.S\.|United States|Canada|Europe|Asia|Africa|Americas|EMEA|APAC|Latin America|Middle East)\b/i],
   "Offices and facilities": [/offices|facilities|manufacturing sites|distribution centers|data ?centers|stores|locations/i],
   "Products and services": [/products and services|our products|our services|product portfolio|service offerings/i],
   "Business segments and revenue mix": [/reportable segments|operating segments|net sales|revenue[s]? by segment|segment revenue/i],
@@ -416,6 +417,30 @@ function buildResearchFindings(
   });
 }
 
+function extractFilingProfileEvidence(
+  sections: Array<{ title: string; content: string | null }>,
+): Array<{ heading: string; paragraph: number; excerpt: string }> {
+  const include = /\b(?:founded|established|headquarters|headquartered|principal executive offices|principal offices|employees|associates|team members|people worldwide|conducted business in|operates? in|operates? across|offices|facilities|manufacturing plants|products and services|we develop|we manufacture|we provide|we offer|we sell|we distribute)\b/i;
+  const exclude = /\b(?:stock[- ]based compensation|share[- ]based compensation|principal accountant fees|income taxes|deferred tax|pension plan|retirement plan|audit fees|tax provision|effective tax rate|related party|earnings per share|fair value|debt maturity|accounts receivable|cash flows from|goodwill|intangible assets)\b/i;
+  const evidence: Array<{ heading: string; paragraph: number; excerpt: string }> = [];
+  for (const section of sections) {
+    const sentences = (section.content ?? "")
+      .split(/(?<=[.!?])\s+|\n+/)
+      .map(sentence => sentence.trim())
+      .filter(sentence => sentence.length >= 30 && sentence.length <= 1800);
+    for (const sentence of sentences) {
+      if (!include.test(sentence) || exclude.test(sentence)) continue;
+      evidence.push({
+        heading: section.title,
+        paragraph: evidence.length + 1,
+        excerpt: sentence.slice(0, 720),
+      });
+      if (evidence.length >= 36) return evidence;
+    }
+  }
+  return evidence;
+}
+
 async function getCompanyResearch(cik: string, userAgent: string, selectedTopics: string[] = []): Promise<Response> {
   const submissionsUrl = `https://data.sec.gov/submissions/CIK${cik}.json`;
   let submissionsResponse: Response;
@@ -461,7 +486,7 @@ async function getCompanyResearch(cik: string, userAgent: string, selectedTopics
     return {
       key: topic.key,
       title: topic.title,
-      item: topic.key === "business" ? "1" : topic.key === "risk" ? "1A" : topic.key === "legal" ? "3" : topic.key === "management" ? "7" : "9A",
+      item: topic.key === "business" ? "1" : topic.key === "properties" ? "2" : topic.key === "risk" ? "1A" : topic.key === "legal" ? "3" : topic.key === "management" ? "7" : "9A",
       content,
       source: { documentUrl, form, filedAt, reportDate, accessionNumber },
       extraction: { method: "line_preserving_heading_match", headingMatched: Boolean(heading), headingText: heading?.heading ?? null, confidence: content ? "candidate" : "unavailable" },
@@ -474,7 +499,7 @@ async function getCompanyResearch(cik: string, userAgent: string, selectedTopics
   const officialSources = await officialSourcesPromise;
   // Always use the identified SEC annual filing as a profile evidence source too.
   // This provides a reliable fallback when external search engines or publishers block retrieval.
-  const filingEvidence = profileTopics.length ? extractBlocks(html) : [];
+  const filingEvidence = profileTopics.length ? [...extractFilingProfileEvidence(sections), ...extractBlocks(html)] : [];
   const filingSource = {
     title: `${companyName} ${form} filed ${filedAt}`,
     url: documentUrl,
