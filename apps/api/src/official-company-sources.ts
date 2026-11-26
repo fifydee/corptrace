@@ -109,7 +109,7 @@ export function extractFacts(sources: CompanySource[]): CompanyFact[] {
     {key:"headquarters",label:"Headquarters",re:/\b(?:headquartered\s+(?:in|at)|headquarters(?:\s+(?:are|is))?\s+(?:located\s+)?(?:in|at)|based\s+(?:in|at))\s+([^.;]{3,100})/i},
     {key:"employees",label:"Employees",re:/\b(?:approximately\s+|about\s+|more than\s+|over\s+)?([\d,]+(?:\.\d+)?\s*(?:million|thousand)?)\s+(?:employees|team members|people)\b/i},
     {key:"offices",label:"Offices / locations",re:/\b([\d,]+)\s+(?:offices|office locations|locations|sites)\b/i},
-    {key:"countries",label:"Countries of operation",re:/\b(?:operates in|in|across)\s+(?:more than\s+|over\s+)?([\d,]+)\s+countries\b/i},
+    {key:"countries",label:"Countries of operation",re:/\b(?:operates in|operate in|operates across|operating in|across|in)\s+(?:more than\s+|over\s+)?([\d,]+)\s+countries\b/i},
   ];
   const found = new Map<string,CompanyFact>();
   for(const s of sources) for(const e of s.evidence){
