@@ -284,7 +284,52 @@ function extractItemSection(text: string, patterns: RegExp[]): string | null {
   const section = (next ? tail.slice(0, next.index) : tail).trim();
   return section.slice(0, 14000) || null;
 }
-async function getCompanyResearch(cik: string, userAgent: string): Promise<Response> {
+const researchTopicSectionMap: Record<string, string[]> = {
+  "Company overview and history": ["business"],
+  "Headquarters and registered locations": ["business"],
+  "Operating regions and countries": ["business"],
+  "Offices and facilities": ["business"],
+  "Products and services": ["business"],
+  "Business segments and revenue mix": ["business", "management"],
+  "Financial summary": ["management"],
+  "Revenue and income sources": ["management"],
+  "Expenses and operating costs": ["management"],
+  "Profitability and margins": ["management"],
+  "Debt and financial position": ["management"],
+  "Dividends and share buybacks": ["management"],
+  "Employee count and workforce": ["business", "management"],
+  "Employee geography and nationalities": ["business"],
+  "Leadership and compensation": ["management"],
+  "Product and service performance": ["business", "management"],
+  "Most profitable products or services": ["business", "management"],
+  "Investment, R&D and AI": ["business", "management"],
+  "Acquisitions and mergers": ["business", "legal"],
+  "SWOT analysis": ["business", "risk", "management"],
+  "Risk factors": ["risk"],
+  "Legal cases and disputes": ["legal"],
+  "Regulatory matters and controversies": ["risk", "legal"],
+  "Recent company news": [],
+};
+
+function buildTopicCoverage(selectedTopics: string[], sections: Array<{ key: string; title: string; dataStatus: string }>) {
+  return selectedTopics.map(topic => {
+    const relevantKeys = researchTopicSectionMap[topic] ?? [];
+    const evidenceSections = sections
+      .filter(section => relevantKeys.includes(section.key))
+      .map(section => ({ key: section.key, title: section.title, dataStatus: section.dataStatus }));
+    const hasCandidate = evidenceSections.some(section => section.dataStatus === "candidate");
+    return {
+      topic,
+      status: hasCandidate ? "candidate" : "unavailable",
+      evidenceSections,
+      limitation: relevantKeys.length === 0
+        ? "This topic requires a separate current-news or external-source integration; the annual filing extractor does not cover it."
+        : "These are broad annual-filing sections that may contain relevant evidence. They are not a topic-specific answer, and absence from these sections does not prove the company has not disclosed the information elsewhere.",
+    };
+  });
+}
+
+async function getCompanyResearch(cik: string, userAgent: string, selectedTopics: string[] = []): Promise<Response> {
   const submissionsUrl = `https://data.sec.gov/submissions/CIK${cik}.json`;
   let submissionsResponse: Response;
   try {
@@ -407,7 +452,7 @@ export default {
       const cik = normaliseCik(researchMatch[1]);
       if (!cik) return json({ error: "Invalid CIK. Supply between 1 and 10 digits." }, 400);
       if (!env.SEC_USER_AGENT || !/\S+\s+\S+/.test(env.SEC_USER_AGENT)) return json({ error: "SEC_USER_AGENT is not configured." }, 503);
-      return getCompanyResearch(cik, env.SEC_USER_AGENT);
+      const selectedTopics = (url.searchParams.get("topics") ?? "").split("|").map(topic => topic.trim()).filter(Boolean).slice(0, 30);\n      return getCompanyResearch(cik, env.SEC_USER_AGENT, selectedTopics);
     }
 
     const metricsMatch = url.pathname.match(
