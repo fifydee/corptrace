@@ -1,4 +1,35 @@
-import { findOfficialCompanySources, extractBlocks, extractFacts } from "./official-company-sources";
+const researchTopicSectionMap: Record<string, string[]> = {
+  "Company overview and history": ["business"],
+  "Headquarters and registered locations": ["business"],
+  "Operating regions and countries": ["business"],
+  "Offices and facilities": ["business"],
+  "Products and services": ["business"],
+  "Business segments and revenue mix": ["business", "management"],
+  "Financial summary": ["management"],
+  "Revenue and income sources": ["management"],
+  "Expenses and operating costs": ["management"],
+  "Profitability and margins": ["management"],
+  "Debt and financial position": ["management"],
+  "Dividends and share buybacks": ["management"],
+  "Employee count and workforce": ["business", "management"],
+  "Employee geography and nationalities": ["business"],
+  "Workforce by country or region": ["business"],
+  "Gender representation (where disclosed)": ["business"],
+  "Leadership changes and compensation": ["management"],
+  "Product and service performance": ["business", "management"],
+  "Most profitable products or services": ["business", "management"],
+  "New products and development pipeline": ["business"],
+  "Investment, R&D and AI": ["business", "management"],
+  "Acquisitions and mergers": ["business", "legal"],
+  "Expansion plans and new facilities": ["business"],
+  "SWOT analysis": ["business", "risk", "management"],
+  "Risk factors": ["risk"],
+  "Legal cases and disputes": ["legal"],
+  "Regulatory matters and controversies": ["risk", "legal"],
+  "Recent company news": [],
+  "Management changes": ["management"],
+  "Company announcements": ["business"],
+};import { findOfficialCompanySources, extractBlocks, extractFacts } from "./official-company-sources";
 import { cleanFilingText, findSectionHeading, extractItemSection } from "./filing-parser.mjs";
 
 export interface Env {
@@ -277,8 +308,7 @@ const researchTopicSectionMap: Record<string, string[]> = {
   "Employee geography and nationalities": ["business"],
   "Workforce by country or region": ["business"],
   "Gender representation (where disclosed)": ["business"],
-  "Leadership and compensation": ["management"],
-  "Leadership changes and compensation": ["management"],
+    "Leadership changes and compensation": ["management"],
   "Product and service performance": ["business", "management"],
   "Most profitable products or services": ["business", "management"],
   "New products and development pipeline": ["business"],
@@ -358,6 +388,10 @@ function buildResearchFindings(
       explanation: "This topic is not covered by the annual filing search alone. A separate current-news or external-source search is required.",
     };
     const patterns = topicEvidencePatterns[topic] ?? [];
+    if (!patterns.length) return {
+      topic, status: "not_searched", evidence: [],
+      explanation: "No topic-specific evidence rule is configured yet. CorpTrace will not treat a broad filing section as an answer to this question.",
+    };
     const evidence: ResearchFinding["evidence"] = [];
     for (const section of sections.filter(item => keys.includes(item.key) && item.content)) {
       const lines = (section.content ?? "").split(/(?<=[.!?])\s+|\n+/).map(line => line.trim()).filter(Boolean);
@@ -392,10 +426,10 @@ async function getCompanyResearch(cik: string, userAgent: string, selectedTopics
   if (!submissionsResponse.ok) return json({ error: "SEC filing submissions request failed.", upstreamStatus: submissionsResponse.status }, 502);
   const submissions = await submissionsResponse.json() as SubmissionPayload;
   const companyName = submissions.name ?? "Unknown company";
-  const officialSourcesPromise = findOfficialCompanySources(companyName, selectedTopics).catch(() => ({
+  const profileTopics = selectedTopics.filter(topic => ["Company overview and history","Headquarters and registered locations","Operating regions and countries","Offices and facilities","Products and services","Employee count and workforce","Employee geography and nationalities","Workforce by country or region","Gender representation (where disclosed)"].includes(topic));\n  const officialSourcesPromise = profileTopics.length ? findOfficialCompanySources(companyName, profileTopics).catch(() => ({
     sourceSearch: "unavailable", retrievedAt: new Date().toISOString(), sources: [], facts: [], overview: null,
     notice: "External company website discovery could not be completed; the SEC filing will still be searched as a profile source.",
-  }));
+  })) : Promise.resolve({ sourceSearch: "not_requested", retrievedAt: new Date().toISOString(), sources: [], facts: [], overview: null, notice: "No company-profile topics were selected; profile source discovery was not run." });
   const recent = submissions.filings?.recent;
   const forms = recent?.form ?? [];
   const index = forms.findIndex(form => ["10-K", "20-F", "40-F"].includes(form));
@@ -418,7 +452,8 @@ async function getCompanyResearch(cik: string, userAgent: string, selectedTopics
   if (!documentResponse.ok) return json({ error: "The SEC annual filing document could not be retrieved.", upstreamStatus: documentResponse.status, sourceUrl: documentUrl }, 502);
   const html = await documentResponse.text();
   const text = cleanFilingText(html);
-  const sections = filingTopics.map(topic => {
+  const requiredKeys = new Set(selectedTopics.flatMap(topic => researchTopicSectionMap[topic] ?? []));
+  const sections = filingTopics.filter(topic => requiredKeys.has(topic.key)).map(topic => {
     const heading = findSectionHeading(text, topic.patterns);
     const content = heading ? extractItemSection(text, topic.patterns) : null;
     return {
@@ -437,7 +472,7 @@ async function getCompanyResearch(cik: string, userAgent: string, selectedTopics
   const officialSources = await officialSourcesPromise;
   // Always use the identified SEC annual filing as a profile evidence source too.
   // This provides a reliable fallback when external search engines or publishers block retrieval.
-  const filingEvidence = extractBlocks(html);
+  const filingEvidence = profileTopics.length ? extractBlocks(html) : [];
   const filingSource = {
     title: `${companyName} ${form} filed ${filedAt}`,
     url: documentUrl,
@@ -475,8 +510,7 @@ async function getCompanyResearch(cik: string, userAgent: string, selectedTopics
     documentUrl,
     retrievedAt: new Date().toISOString(),
     status: "filing_sections_extracted",
-    sections,
-    findings: buildResearchFindings(selectedTopics, sections, documentUrl),
+    sections,\n    topicCoverage: buildTopicCoverage(selectedTopics, sections),\n    findings: buildResearchFindings(selectedTopics, sections, documentUrl),
     notice: "The report searches selected topics within the latest identified annual filing. Evidence excerpts are source-attributed, not independently audited. A not-found result means no matching disclosure was found in the sections reviewed, not that the information does not exist elsewhere."
   });
 }
