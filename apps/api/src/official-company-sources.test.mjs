@@ -16,6 +16,24 @@ test("decodes HTML entities and preserves readable paragraph boundaries", () => 
   );
 });
 
+test("parses DuckDuckGo result links when href and class attributes vary in order", () => {
+  const target = "https://www.dell.com/about";
+  const html = `<div class="result"><div class="result__body"><h2><a rel="nofollow" href="/l/?uddg=${encodeURIComponent(target)}" class="result__a">Dell Technologies | About</a></h2><a class="result__snippet">Dell Technologies is a global technology company.</a></div></div>`;
+  const results = mod.parseDuckDuckGoResults(html, "https://html.duckduckgo.com/html/");
+  assert.equal(results.length, 1);
+  assert.equal(results[0].url, target);
+  assert.match(results[0].title, /Dell Technologies/);
+  assert.match(results[0].snippet, /global technology company/);
+});
+
+test("parses Bing organic results as a fallback provider", () => {
+  const html = `<ol id="b_results"><li class="b_algo"><h2><a href="https://www.pfizer.com/about">About Pfizer</a></h2><div class="b_caption"><p>Pfizer is a global biopharmaceutical company.</p></div></li></ol>`;
+  const results = mod.parseBingResults(html);
+  assert.equal(results.length, 1);
+  assert.equal(results[0].url, "https://www.pfizer.com/about");
+  assert.match(results[0].snippet, /biopharmaceutical company/);
+});
+
 test("unwraps DuckDuckGo redirect links and rejects unsafe protocols", () => {
   const target = "https://www.dell.com/about";
   const redirect = "https://duckduckgo.com/l/?uddg=" + encodeURIComponent(target);
