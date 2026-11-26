@@ -117,7 +117,7 @@ test("extracts relevant business descriptions and product offerings across retai
 });
 
 test("extracts Walmart-style associate counts as workforce facts", () => {
-  // Based on Walmart FY2026 Form 10-K, Item 1A: https://www.sec.gov/Archives/edgar/data/104169/000010416926000055/wmt-20260131.htm
+  // Based on Walmart FY2026 Form 10-K, Item 1: https://www.sec.gov/Archives/edgar/data/104169/000010416926000055/wmt-20260131.htm
   const html = "<h2>Human Capital</h2><p>Approximately 2.1 million associates around the world, including approximately 1.6 million associates in the U.S.</p>";
   const evidence = mod.extractBlocks(html);
   const facts = mod.extractFacts([{
