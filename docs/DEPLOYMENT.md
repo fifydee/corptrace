@@ -14,12 +14,12 @@ Create or use a Cloudflare Pages project named `corptrace-web` and enable a `wor
 
 ## Two-stage first deployment
 
-The API must be deployed before the frontend because the frontend build needs the API's actual URL.
+The API must be deployed before the frontend because the frontend build needs the API's actual URL. The full deployment workflow validates the frontend build and required configuration before deploying either service; it then deploys the Worker before Pages.
 
-1. In GitHub, open **Actions → Deploy CorpTrace API → Run workflow**. This deploys only the Worker after running the API TypeScript check.
+1. In GitHub, open **Actions → Deploy CorpTrace API → Run workflow** and select the branch you intend to deploy. The workflow uses Node.js 22.12.0 and `npm ci`, type-checks the API, validates the Worker bundle with a Wrangler dry-run, checks that both Cloudflare secrets are present, then deploys the Worker with `APP_ENV=production`.
 2. Open that workflow run's **Deploy Cloudflare Worker** log and copy the deployed Worker URL. It should look like `https://corptrace-api.<your-workers-subdomain>.workers.dev`. Use the exact URL printed by Wrangler, not this example.
 3. In **Settings → Secrets and variables → Actions → Variables**, create `VITE_API_BASE_URL` with the Worker URL as its value, without a trailing slash.
-4. Open **Actions → Deploy CorpTrace → Run workflow**. This deploys the Worker again and then builds and publishes the frontend to Pages.
+4. Open **Actions → Deploy CorpTrace → Run workflow** and select the same branch. Before changing production, it checks the Cloudflare secrets and API URL variable, runs the high-severity dependency audit, API tests, API type-check, Worker dry-run and frontend production build. Only after those checks pass does it deploy the Worker and then publish the frontend to Pages.
 
 Never put the API token or account ID in a repository variable, source file or chat message.
 
