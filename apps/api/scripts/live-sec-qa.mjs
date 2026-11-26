@@ -258,6 +258,9 @@ if (runExternalSourceQa) {
     companiesChecked: report.companies.length,
   };
   if (withOfficialCompanyPage < 2) failures.push("Fewer than two of three companies returned an official company-domain page");
+  if (withBusinessPublication === 0) report.externalDiscoveryCoverage.warning = "No established business-publication pages were found in this run.";
+  if (externalFactCount === 0) report.externalDiscoveryCoverage.factWarning = "No external company profile facts were extracted; SEC facts remain the primary source.";
+  await writeFile(outputPath, JSON.stringify(report, null, 2) + "\\n");
 }
 if (process.env.GITHUB_STEP_SUMMARY) {
   const summary = [
@@ -266,10 +269,10 @@ if (process.env.GITHUB_STEP_SUMMARY) {
     "| Company | Filing | Filed | Workforce result | QA status |",
     "|---|---|---|---|---|",
     ...report.companies.map((company) =>
-      "| " + (company.companyName ?? company.id) + " | " + (company.form ?? "—") + " | " + (company.filedAt ?? "—") + " | " + (company.workforceEvidence ?? []).join(" ") + " | " + (company.errors?.length ? "Needs attention" : "Passed") + " |"
+      "| " + (company.companyName ?? company.id) + " | " + (company.form ?? "—") + " | " + (company.filedAt ?? "—") + " | " + (company.workforceEvidence ?? []).join(" ") + " | " + (company.errors?.length ? "Failed" : company.warnings?.length ? "Partial coverage" : "Passed") + " |"
     ),
     "",
-    "This run exercised the CorpTrace Worker research route against live SEC submissions and filing documents. External company-web discovery was intentionally stubbed; SEC retrieval, filing parsing, topic matching and source attribution were exercised.",
+    runExternalSourceQa ? "This run exercised the CorpTrace Worker research route, live SEC retrieval, and live external search/page retrieval. The SEC filing fallback is excluded from external-source coverage counts." : "This run exercised the CorpTrace Worker research route against live SEC submissions and filing documents. External company-web discovery was intentionally stubbed; SEC retrieval, filing parsing, topic matching and source attribution were exercised.",
     "",
     "Full excerpts and topic results are available in the " + (runExternalSourceQa ? "live-company-source-qa-report.json" : "live-sec-qa-report.json") + " workflow artifact.",
     "",
