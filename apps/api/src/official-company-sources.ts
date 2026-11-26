@@ -47,7 +47,7 @@ function attribute(tag: string, name: string): string {
   const match = tag.match(new RegExp("\\b" + name + "\\s*=\\s*(['\"])(.*?)\\1", "i"));
   return match?.[2] ?? "";
 }
-function parseDuckDuckGoResults(html: string, endpoint: string): Array<{ title: string; url: string; snippet: string }> {
+export function parseDuckDuckGoResults(html: string, endpoint: string): Array<{ title: string; url: string; snippet: string }> {
   const results: Array<{ title: string; url: string; snippet: string }> = [];
   for (const match of html.matchAll(/<a\b[^>]*>[\s\S]*?<\/a>/gi)) {
     const tag = match[0];
@@ -63,7 +63,7 @@ function parseDuckDuckGoResults(html: string, endpoint: string): Array<{ title: 
   }
   return results;
 }
-function parseBingResults(html: string): Array<{ title: string; url: string; snippet: string }> {
+export function parseBingResults(html: string): Array<{ title: string; url: string; snippet: string }> {
   const results: Array<{ title: string; url: string; snippet: string }> = [];
   const blocks = [...html.matchAll(/<li\b[^>]*class=["'][^"']*\bb_algo\b[^"']*["'][^>]*>([\s\S]*?)<\/li>/gi)];
   for (const block of blocks) {
