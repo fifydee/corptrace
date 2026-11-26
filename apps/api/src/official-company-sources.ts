@@ -254,9 +254,12 @@ export async function findOfficialCompanySources(companyName:string, selectedTop
   ];
   const resultSets=await Promise.all(queries.map(q=>searchWeb(q).catch(()=>[])));
   const rawCandidates=resultSets.flat().map(result=>({...result,url:cleanUrl(result.url,"https://www.bing.com/")??result.url})).filter((r,i,a)=>a.findIndex(x=>x.url===r.url)===i);
-  const candidates=rawCandidates
-    .filter(r=>{const hay=normalise(r.title+" "+r.snippet+" "+r.url);return terms.some(t=>hay.includes(t));})
-    .slice(0,18);
+  const relevantCandidates=rawCandidates
+    .filter(r=>{const hay=normalise(r.title+" "+r.snippet+" "+r.url);return terms.some(t=>hay.includes(t));});
+  const candidates=[
+    ...relevantCandidates.filter(result=>Boolean(result.publisherUrl)),
+    ...relevantCandidates.filter(result=>!result.publisherUrl),
+  ].slice(0,18);
   if(!candidates.length) console.warn("CorpTrace search produced no company-matched candidates", {companyName, queryResultCounts:resultSets.map(set=>set.length), rawCandidateCount:rawCandidates.length, sampleResults:rawCandidates.slice(0,5).map(result=>({title:result.title,url:result.url}))});
   const sources:CompanySource[]=[];
   for(const candidate of candidates){
