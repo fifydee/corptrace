@@ -230,33 +230,41 @@ export async function findOfficialCompanySources(companyName:string, selectedTop
   if(!candidates.length) console.warn("CorpTrace search produced no company-matched candidates", {companyName, queryResultCounts:resultSets.map(set=>set.length), rawCandidateCount:rawCandidates.length, sampleResults:rawCandidates.slice(0,5).map(result=>({title:result.title,url:result.url}))});
   const sources:CompanySource[]=[];
   for(const candidate of candidates){
+    const sourceUrl=cleanUrl(candidate.url,candidate.url);
+    if(!sourceUrl) continue;
+    const sourceType=classify(sourceUrl,companyName);
+    if(sourceType==="other") continue;
+    const domain=new URL(sourceUrl).hostname.toLowerCase().replace(/^www\\./,"");
+    const snippetEvidence=()=>candidate.snippet.length>=50
+      ? [{heading:"Search result snippet (page fetch unavailable)",paragraph:1,excerpt:candidate.snippet.slice(0,720)}]
+      : [];
     try{
-      const response=await fetch(candidate.url,{headers:{"User-Agent":"Mozilla/5.0 (compatible; CorpTraceResearch/2.0)","Accept":"text/html,application/xhtml+xml"},redirect:"follow",signal:AbortSignal.timeout(10000)});
-      const sourceUrl = cleanUrl(candidate.url, candidate.url);
-      if(!sourceUrl) continue;
-      const sourceType = classify(sourceUrl, companyName);
-      if(sourceType === "other") continue;
+      const response=await fetch(sourceUrl,{headers:{"User-Agent":"Mozilla/5.0 (compatible; CorpTraceResearch/2.0)","Accept":"text/html,application/xhtml+xml"},redirect:"follow",signal:AbortSignal.timeout(10000)});
       if(!response.ok || !(response.headers.get("content-type")??"").includes("text/html")){
         console.warn("CorpTrace external page fetch was not usable",{url:sourceUrl,status:response.status,contentType:response.headers.get("content-type")});
-        if(candidate.snippet.length >= 50) {
-          const domain = new URL(sourceUrl).hostname.toLowerCase().replace(/^www\./,"");
-          sources.push({title:candidate.title,url:sourceUrl,domain,sourceType,retrievedAt:new Date().toISOString(),evidence:[{heading:"Search result snippet (page fetch unavailable)",paragraph:1,excerpt:candidate.snippet.slice(0,720)}],evidenceOrigin:"search_result_snippet"});
-        }
+        const evidence=snippetEvidence();
+        if(evidence.length) sources.push({title:candidate.title,url:sourceUrl,domain,sourceType,retrievedAt:new Date().toISOString(),evidence,evidenceOrigin:"search_result_snippet"});
         continue;
       }
-      const url=cleanUrl(response.url||sourceUrl,sourceUrl); if(!url)continue; const html=(await response.text()).slice(0,2_000_000), pageText=textOf(html);
-      const title=decode(html.match(/<title[^>]*>([\s\S]*?)<\/title>/i)?.[1]??candidate.title).replace(/<[^>]+>/g," ").trim().slice(0,180);
+      const url=cleanUrl(response.url||sourceUrl,sourceUrl); if(!url)continue;
+      const html=(await response.text()).slice(0,2_000_000), pageText=textOf(html);
+      const title=decode(html.match(/<title[^>]*>([\\s\\S]*?)<\\/title>/i)?.[1]??candidate.title).replace(/<[^>]+>/g," ").trim().slice(0,180);
       const hay=normalise(title+" "+pageText.slice(0,12000)), matched=terms.filter(t=>hay.includes(t)).length;
       if(matched===0)continue;
       const evidence=extractBlocks(html);
-      const domain=new URL(url).hostname.toLowerCase().replace(/^www\./,"");
+      const finalDomain=new URL(url).hostname.toLowerCase().replace(/^www\\./,"");
       if(!evidence.length){
         console.warn("CorpTrace external page yielded no evidence blocks",{url,title,contentLength:html.length,textLength:pageText.length});
-        if(candidate.snippet.length >= 50) sources.push({title:title||candidate.title,url,domain,sourceType,retrievedAt:new Date().toISOString(),evidence:[{heading:"Search result snippet (page retrieved; no evidence blocks)",paragraph:1,excerpt:candidate.snippet.slice(0,720)}],evidenceOrigin:"search_result_snippet"});
+        const fallback=snippetEvidence();
+        if(fallback.length) sources.push({title:title||candidate.title,url,domain:finalDomain,sourceType,retrievedAt:new Date().toISOString(),evidence:fallback,evidenceOrigin:"search_result_snippet"});
         continue;
       }
-      sources.push({title:title||candidate.title,url,domain,sourceType,retrievedAt:new Date().toISOString(),evidence,evidenceOrigin:"retrieved_page"});
-    }catch(error){console.warn("CorpTrace external page retrieval failed",{url:candidate.url,error:error instanceof Error?error.message:String(error)});}
+      sources.push({title:title||candidate.title,url,domain:finalDomain,sourceType,retrievedAt:new Date().toISOString(),evidence,evidenceOrigin:"retrieved_page"});
+    }catch(error){
+      console.warn("CorpTrace external page retrieval failed",{url:sourceUrl,error:error instanceof Error?error.message:String(error)});
+      const evidence=snippetEvidence();
+      if(evidence.length) sources.push({title:candidate.title,url:sourceUrl,domain,sourceType,retrievedAt:new Date().toISOString(),evidence,evidenceOrigin:"search_result_snippet"});
+    }
   }
   const ranked=sources.sort((a,b)=>({company:0,regulator:1,business_publication:2,other:3}[a.sourceType]-{company:0,regulator:1,business_publication:2,other:3}[b.sourceType])).slice(0,12);
   const facts=extractFacts(ranked);
