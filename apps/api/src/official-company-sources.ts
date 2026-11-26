@@ -17,20 +17,21 @@ export function decode(value: string): string {
     .replace(/&lt;/gi, "<").replace(/&gt;/gi, ">");
 }
 export function textOf(html: string): string {
-  return decode(
-    html
-      .replace(/<script[\\s\\S]*?<\\/script>/gi, " ")
-      .replace(/<style[\\s\\S]*?<\\/style>/gi, " ")
-      .replace(/<noscript[\\s\\S]*?<\\/noscript>/gi, " ")
-      .replace(/<\\/(p|li|h[1-6]|tr|section|article|div)>/gi, "\\n")
-      .replace(/<[^>]+>/g, " ")
-      .replace(/[\\t\\r ]+/g, " ")
-      .replace(/\\n\\s+/g, "\\n")
-      .replace(/\\n{2,}/g, "\\n")
-      .trim()
+  const withoutNonContent = html
+    .replace(/<script[\s\S]*?<\/script>/gi, " ")
+    .replace(/<style[\s\S]*?<\/style>/gi, " ")
+    .replace(/<noscript[\s\S]*?<\/noscript>/gi, " ");
+  const withBoundaries = withoutNonContent.replace(
+    /<\/(p|li|h[1-6]|tr|section|article|div)>/gi,
+    String.fromCharCode(10)
   );
+  const plain = withBoundaries.replace(/<[^>]+>/g, " ");
+  return decode(plain)
+    .replace(/[\t\r ]+/g, " ")
+    .replace(new RegExp(String.fromCharCode(10) + "\\s+", "g"), String.fromCharCode(10))
+    .replace(new RegExp(String.fromCharCode(10) + "{2,}", "g"), String.fromCharCode(10))
+    .trim();
 }
-
 export function cleanUrl(href: string, base: string): string | null {
   try {
     const u = new URL(href, base);
