@@ -493,6 +493,10 @@ async function getCompanyResearch(cik: string, userAgent: string, selectedTopics
     profileFact("countries") ? `Operates in ${profileFact("countries")} countries` : null,
     profileFact("employees") ? `Reports ${profileFact("employees")} employees` : null,
   ].filter(Boolean).join(". ");
+  const publicSections = sections.map(section => ({
+    ...section,
+    content: section.content?.slice(0, 14000) ?? null,
+  }));
   const enrichedOfficialSources = {
     ...officialSources,
     sources: combinedSources.slice(0, 16),
