@@ -205,11 +205,11 @@ async function searchWeb(query: string): Promise<Array<{ title: string; url: str
 export function classify(url: string, companyName: string): CompanySource["sourceType"] {
   const host = new URL(url).hostname.toLowerCase();
   if (/(sec\.gov|companieshouse\.gov)/.test(host)) return "regulator";
-  if (/(^|\.)(forbes\.com|businessinsider\.com|reuters\.com|bloomberg\.com|wsj\.com|ft\.com|cnbc\.com|apnews\.com|bbc\.com|theguardian\.com|fortune\.com|nytimes\.com)$/.test(host)) return "business_publication";
+  if (/(^|\.)(forbes\.com|businessinsider\.com|reuters\.com|bloomberg\.com|wsj\.com|ft\.com|cnbc\.com|apnews\.com|bbc\.com|theguardian\.com|fortune\.com|nytimes\.com|marketwatch\.com|finance\.yahoo\.com|investopedia\.com)$/.test(host)) return "business_publication";
   const labels = host.split(".");
-  return companyTerms(companyName).some(term => labels.some(label => label === term)) ? "company" : "other";
-}
-export function extractBlocks(html: string): Evidence[] {
+  const terms = companyTerms(companyName);
+  const compactName = terms.join("");
+  return labels.some(label => label === compactName || terms.includes(label)) ? "company" : "other";
   const blocks=[...html.matchAll(/<(h[1-6]|p|li)[^>]*>([\s\S]*?)<\/\1>/gi)];
   let heading="Page content", paragraph=0; const out:Evidence[]=[];
   const include=/\b(founded|established|headquarters|headquartered|principal executive office|employees|associates|workforce|team members|products|services|solutions|operates in|operates|across .* countries|more than [0-9,]+ countries|over [0-9,]+ countries|countries|offices|locations|facilities|manufacturing sites|people worldwide|business segments|what we do|retailer|retailers|biopharmaceutical|pharmaceutical|designs|develops|manufactures|sells|offers|distributes|supplies|delivers|markets|provides|serves customers|global technology|is a [a-z -]{2,60} company|is a global|is an international|is a leading|is a provider|is a manufacturer|is a retailer|is a technology|speciali[sz]es in)\b/i;
