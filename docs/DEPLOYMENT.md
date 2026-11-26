@@ -46,6 +46,20 @@ npm run test:e2e --workspace @corptrace/api
 
 The test checks the served React app shell and entry module, the frontend-to-Worker health proxy, SEC company lookup, Microsoft filing submissions and SEC XBRL metrics. It exercises live SEC requests through the local Worker and does not deploy or contact the production Worker. This is a controlled HTTP integration check, not a substitute for full interactive browser testing across desktop and mobile devices.
 
+## Browser-level company research tests
+
+The local E2E CI job also installs pinned Playwright 1.56.1 and Chromium, then runs `apps/api/scripts/browser-e2e.mjs` against the locally served frontend and Worker.
+
+The browser suite covers the visible company search and selection journey, selecting a research topic, triggering research, the loading indicator, rendering source-linked findings, and communicating a research API failure. SEC lookup, submissions and metrics requests still go through the local Worker to live SEC endpoints. The narrative research response is deliberately stubbed in the browser test so UI behavior is deterministic and does not depend on third-party search-engine availability.
+
+Run locally after installing Playwright and Chromium and starting the local Worker and Vite frontend:
+
+```sh
+node apps/api/scripts/browser-e2e.mjs
+```
+
+This is a desktop Chromium smoke suite. It does not yet replace cross-browser, mobile viewport, keyboard-only/accessibility, or production-deployed testing.
+
 ## External company-source discovery
 
 Company profile discovery uses DuckDuckGo HTML search first, then Bing HTML/RSS and Google News RSS for publisher-diverse results. Search result URLs are normalized and validated as HTTPS before page retrieval; DuckDuckGo and Bing click-tracking redirects are unwrapped locally. Redirect destinations are revalidated before fetching. Individual page failures are logged and do not abort the rest of a company's source search.
