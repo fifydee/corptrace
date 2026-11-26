@@ -31,6 +31,62 @@ jobs:
       - name: Build web app
         run: npm run build --workspace @corptrace/web
 
+  local-e2e:
+    needs: validate
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22.12.0
+      - name: Install dependencies from lockfile
+        run: npm ci
+      - name: Start local Cloudflare Worker
+        run: |
+          nohup npm run dev --workspace @corptrace/api -- --local --ip 127.0.0.1 --port 8787 > /tmp/corptrace-worker.log 2>&1 &
+          echo $! > /tmp/corptrace-worker.pid
+      - name: Wait for Worker health endpoint
+        run: |
+          for attempt in $(seq 1 45); do
+            if curl --silent --fail http://127.0.0.1:8787/health > /tmp/corptrace-health.json; then
+              cat /tmp/corptrace-health.json
+              exit 0
+            fi
+            sleep 2
+          done
+          cat /tmp/corptrace-worker.log
+          exit 1
+      - name: Start Vite frontend with Worker proxy
+        run: |
+          nohup npm run dev --workspace @corptrace/web -- --host 127.0.0.1 --port 4173 --strictPort > /tmp/corptrace-web.log 2>&1 &
+          echo $! > /tmp/corptrace-web.pid
+      - name: Wait for frontend
+        run: |
+          for attempt in $(seq 1 30); do
+            if curl --silent --fail http://127.0.0.1:4173/ > /tmp/corptrace-index.html; then
+              exit 0
+            fi
+            sleep 2
+          done
+          cat /tmp/corptrace-web.log
+          exit 1
+      - name: Test frontend-to-Worker SEC flow
+        run: npm run test:e2e --workspace @corptrace/api
+      - name: Capture local server logs
+        if: always()
+        run: |
+          echo "### Worker log"
+          test ! -f /tmp/corptrace-worker.log || tail -n 250 /tmp/corptrace-worker.log
+          echo "### Frontend log"
+          test ! -f /tmp/corptrace-web.log || tail -n 150 /tmp/corptrace-web.log
+
   live-company-source-qa:
     needs: validate
     runs-on: ubuntu-latest
