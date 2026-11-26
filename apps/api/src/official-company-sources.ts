@@ -155,9 +155,13 @@ async function searchWeb(query: string): Promise<Array<{ title: string; url: str
           headers: { ...headers, "Accept": "application/rss+xml,application/xml;q=0.9,*/*;q=0.8" },
           signal: AbortSignal.timeout(10000)
         });
-        const newsResults = newsResponse.ok ? parseGoogleNewsRssResults(await newsResponse.text()) : [];
+        const newsXml = newsResponse.ok ? await newsResponse.text() : "";
+        const newsResults = parseGoogleNewsRssResults(newsXml);
+        if(!newsResults.length) console.warn("CorpTrace Google News RSS returned no publisher results", {
+          status: newsResponse.status, bodyLength: newsXml.length, itemMarkup: /<item\\b/i.test(newsXml), query: query.slice(0,160)
+        });
         const merged = [...results, ...newsResults].filter((item,index,all)=>all.findIndex(other=>other.url===item.url)===index);
-        return merged.slice(0,15);
+        return merged.slice(0,25);
       } catch (error) {
         console.warn("CorpTrace Google News RSS search request failed", {
           error: error instanceof Error ? error.message : String(error), query: query.slice(0, 160)
