@@ -20,6 +20,8 @@ jobs:
           cache: npm
       - name: Install dependencies from lockfile
         run: npm ci
+      - name: Require production branch
+        run: test "$GITHUB_REF" = "refs/heads/main" || { echo "::error::Production deployments must be run from main after the deployment PR is merged."; exit 1; }
       - name: Check required deployment configuration
         shell: bash
         run: |
