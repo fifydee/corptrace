@@ -69,6 +69,18 @@ test("does not mistake a third-party domain containing a company token for the c
   assert.equal(mod.classify("https://www.sec.gov/Archives/edgar/data/1/filing.htm", "Dell Technologies"), "regulator");
 });
 
+test("extracts business descriptions that use active company verbs", () => {
+  const facts = mod.extractFacts([{
+    title: "Dell company profile",
+    url: "https://www.bloomberg.com/profile/company/DELL:US",
+    domain: "bloomberg.com",
+    sourceType: "business_publication",
+    retrievedAt: "2026-11-26T00:00:00.000Z",
+    evidence: [{ heading: "Company Profile", paragraph: 1, excerpt: "Dell Technologies Inc. provides computer hardware products. The Company designs and manufactures laptops, desktops, tablets, workstations and servers." }]
+  }]);
+  assert.match(facts.find(fact => fact.key === "business")?.value ?? "", /provides computer hardware products/i);
+});
+
 test("extracts source-attributed company facts without treating facility square footage as office count", () => {
   const html = [
     "<h2>Company Overview</h2>",
