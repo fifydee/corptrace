@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
-import { readFile, mkdir, writeFile, appendFile } from "node:fs/promises";
-import { dirname, resolve } from "node:path";
+import { readFile, writeFile, appendFile } from "node:fs/promises";
+import { resolve } from "node:path";
 import ts from "typescript";
 
 const apiDir = new URL("../", import.meta.url);
@@ -16,10 +16,10 @@ const compilerOptions = {
   target: ts.ScriptTarget.ES2022,
 };
 const transpile = (source) => ts.transpileModule(source, { compilerOptions }).outputText;
-const stripExports = (source) => source.replace(/^export\\s+/gm, "");
+const stripExports = (source) => source.replace(/^export\s+/gm, "");
 
-const indexWithoutImports = indexSource.replace(/^import\\s+.*?;\\s*$/gm, "");
-assert.ok(!/^import\\s/m.test(indexWithoutImports), "QA bundle must not retain unresolved imports");
+const indexWithoutImports = indexSource.replace(/^import\s+.*?;\s*$/gm, "");
+assert.ok(!/^import\s/m.test(indexWithoutImports), "QA bundle must not retain unresolved imports");
 
 const externalSearchStub = `
 async function findOfficialCompanySources(companyName, selectedTopics = []) {
@@ -39,7 +39,7 @@ const bundle = [
   stripExports(parserSource),
   externalSearchStub,
   transpile(indexWithoutImports),
-].join("\\n");
+].join("\n");
 
 const workerModule = await import(
   "data:text/javascript;base64," + Buffer.from(bundle).toString("base64")
@@ -49,7 +49,7 @@ assert.equal(typeof worker?.fetch, "function", "Worker fetch handler must be exp
 
 const userAgent = process.env.CORPTRACE_SEC_USER_AGENT
   || "CorpTrace live SEC QA/0.1 (corptrace@protonmail.com)";
-assert.match(userAgent, /\\S+\\s+\\S+/, "SEC requests require a descriptive User-Agent and contact");
+assert.match(userAgent, /\S+\s+\S+/, "SEC requests require a descriptive User-Agent and contact");
 
 const topics = [
   "Company overview and history",
@@ -65,21 +65,21 @@ const companies = [
     id: "dell",
     cik: "0001571996",
     expectedName: /Dell Technologies/i,
-    employeePattern: /97,000\\s+employees/i,
+    employeePattern: /97,000\s+employees/i,
     employeeLabel: "approximately 97,000 employees",
   },
   {
     id: "walmart",
     cik: "0000104169",
     expectedName: /Walmart/i,
-    employeePattern: /2\\.1\\s+million\\s+associates/i,
+    employeePattern: /2\.1\s+million\s+associates/i,
     employeeLabel: "approximately 2.1 million associates",
   },
   {
     id: "pfizer",
     cik: "0000078003",
     expectedName: /Pfizer/i,
-    employeePattern: /75,000\\s+people/i,
+    employeePattern: /75,000\s+people/i,
     employeeLabel: "approximately 75,000 people",
   },
 ];
@@ -107,7 +107,7 @@ for (const company of companies) {
   assert.equal(response.status, 200, `${company.id}: research endpoint returned ${response.status}: ${JSON.stringify(body)}`);
   assert.match(body.companyName ?? "", company.expectedName, `${company.id}: SEC entity name mismatch`);
   assert.ok(["10-K", "20-F", "40-F"].includes(body.form), `${company.id}: expected an annual SEC filing`);
-  assert.match(body.documentUrl ?? "", /^https:\\/\\/www\\.sec\\.gov\\/Archives\\/edgar\\/data\\//, `${company.id}: filing URL must point to SEC EDGAR`);
+  assert.match(body.documentUrl ?? "", /^https:\/\/www\.sec\.gov\/Archives\/edgar\/data\//, `${company.id}: filing URL must point to SEC EDGAR`);
 
   const businessSection = body.sections?.find((section) => section.key === "business");
   assert.ok(businessSection?.content, `${company.id}: Item 1 / Business section was not extracted`);
@@ -121,7 +121,7 @@ for (const company of companies) {
     `${company.id}: expected workforce disclosure in reviewed filing sections; got ${workforceFinding.status}. Excerpts: ${JSON.stringify(workforceFinding.evidence)}`,
   );
 
-  const workforceEvidence = workforceFinding.evidence.map((item) => item.excerpt).join("\\n");
+  const workforceEvidence = workforceFinding.evidence.map((item) => item.excerpt).join("\n");
   assert.match(
     workforceEvidence,
     company.employeePattern,
@@ -158,11 +158,11 @@ for (const company of companies) {
     filing: companyReport.form,
     filedAt: companyReport.filedAt,
     workforce: companyReport.workforceEvidence,
-  }) + "\\n");
+  }) + "\n");
 }
 
 const outputPath = resolve(process.cwd(), "live-sec-qa-report.json");
-await writeFile(outputPath, JSON.stringify(report, null, 2) + "\\n");
+await writeFile(outputPath, JSON.stringify(report, null, 2) + "\n");
 if (process.env.GITHUB_STEP_SUMMARY) {
   const summary = [
     "## CorpTrace live SEC QA",
@@ -176,7 +176,7 @@ if (process.env.GITHUB_STEP_SUMMARY) {
     "This run exercised the CorpTrace Worker research route against live SEC submissions and filing documents. External company-web discovery was intentionally stubbed; the SEC filing fallback, parsing, topic matching and source attribution were exercised.",
     "",
     "Full excerpts and topic results are available in the `live-sec-qa-report.json` workflow artifact.",
-  ].join("\\n");
-  await appendFile(process.env.GITHUB_STEP_SUMMARY, summary + "\\n");
+  ].join("\n");
+  await appendFile(process.env.GITHUB_STEP_SUMMARY, summary + "\n");
 }
-process.stdout.write(`Live SEC QA passed for ${report.companies.length} companies. Report: ${outputPath}\\n`);
+process.stdout.write(`Live SEC QA passed for ${report.companies.length} companies. Report: ${outputPath}\n`);
