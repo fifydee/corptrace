@@ -325,7 +325,7 @@ type ResearchFinding = {
 };
 
 const topicEvidencePatterns: Record<string, RegExp[]> = {
-  "Company overview and history": [/\b(?:founded|incorporated|established)\b|^company overview$|^about (?:the )?company$|\b(?:is|are)\s+(?:a|an)\s+[^.!?]{5,140}\b(?:company|provider|manufacturer|retailer|biopharmaceutical|pharmaceutical|technology)\b|\bwe\s+(?:design|develop|manufacture|sell|provide|offer|distribute)\b/i],
+  "Company overview and history": [/\b(?:founded|incorporated|established)\b|\b(?:is|are)\s+(?:a|an)\s+[^.!?]{5,140}\b(?:company|provider|manufacturer|retailer|biopharmaceutical|pharmaceutical|technology)\b|\bwe\s+(?:design|develop|manufacture|sell|provide|offer|distribute)\b/i],
   "Headquarters and registered locations": [/headquartered|headquarters|principal executive offices|principal offices|registered office/i],
   "Operating regions and countries": [/\b(?:conduct(?:s|ed) business in|operate[s]? in|operate[s]? across|across)\s+(?:(?:more than|over|approximately)\s+)?[0-9,]+\s+countries\b|\b(?:our|the company’s|company’s)\s+(?:operations|business)\s+(?:are\s+)?(?:in|across)\s+(?:the\s+)?(?:U\.S\.|United States|Canada|Europe|Asia|Africa|Americas|EMEA|APAC|Latin America|Middle East)\b/i],
   "Offices and facilities": [/offices|facilities|manufacturing sites|distribution centers|data ?centers|stores|locations/i],
