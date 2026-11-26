@@ -16,6 +16,9 @@ const compilerOptions = {
   target: ts.ScriptTarget.ES2022,
 };
 const transpile = (source) => ts.transpileModule(source, { compilerOptions }).outputText;
+const officialHelpersEnd = officialSource.indexOf("export async function findOfficialCompanySources(");
+assert.notEqual(officialHelpersEnd, -1, "official source discovery function must be identifiable");
+const officialHelpersSource = officialSource.slice(0, officialHelpersEnd);
 const stripExports = (source) => source.replace(/^export\s+/gm, "");
 
 const indexWithoutImports = indexSource.replace(/^import\s+.*?;\s*$/gm, "");
@@ -35,7 +38,7 @@ async function findOfficialCompanySources(companyName, selectedTopics = []) {
 `;
 
 const bundle = [
-  stripExports(transpile(officialSource)),
+  stripExports(transpile(officialHelpersSource)),
   stripExports(parserSource),
   externalSearchStub,
   transpile(indexWithoutImports),
