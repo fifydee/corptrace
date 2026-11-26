@@ -49,6 +49,13 @@ test("unwraps DuckDuckGo redirect links and rejects unsafe protocols", () => {
   assert.equal(mod.cleanUrl("http://example.com", "https://example.com"), null);
 });
 
+test("unwraps Bing click tracking URLs before source retrieval", () => {
+  const target = "https://www.dell.com/en-us/about";
+  const encoded = "a1" + Buffer.from(target).toString("base64url");
+  const redirect = "https://www.bing.com/ck/a?u=" + encoded + "&ntb=1";
+  assert.equal(mod.cleanUrl(redirect, "https://www.bing.com/search"), target);
+});
+
 test("does not mistake a third-party domain containing a company token for the company itself", () => {
   assert.equal(mod.classify("https://dell-careers.example.org/jobs", "Dell Technologies"), "other");
   assert.equal(mod.classify("https://www.dell.com/about", "Dell Technologies"), "company");
