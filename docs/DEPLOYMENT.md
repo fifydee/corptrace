@@ -34,6 +34,18 @@ On the deployed Worker, open:
 
 Then open the Pages site, search for a company, select the correct SEC registrant and confirm that the research page displays filing dates, source links, metric status and annual-report extracts.
 
+## Local frontend-to-Worker smoke test
+
+The CI workflow starts the Worker locally with Wrangler on port 8787 and the Vite frontend on port 4173. Vite proxies `/health` and `/sec/*` requests to the local Worker when `VITE_API_BASE_URL` is unset, matching the frontend's same-origin API calls during local development.
+
+Run the HTTP-level integration smoke test after starting both local servers:
+
+```sh
+npm run test:e2e --workspace @corptrace/api
+```
+
+The test checks the served React app shell and entry module, the frontend-to-Worker health proxy, SEC company lookup, Microsoft filing submissions and SEC XBRL metrics. It exercises live SEC requests through the local Worker and does not deploy or contact the production Worker. This is a controlled HTTP integration check, not a substitute for full interactive browser testing across desktop and mobile devices.
+
 ## External company-source discovery
 
 Company profile discovery uses DuckDuckGo HTML search first, then Bing HTML/RSS and Google News RSS for publisher-diverse results. Search result URLs are normalized and validated as HTTPS before page retrieval; DuckDuckGo and Bing click-tracking redirects are unwrapped locally. Redirect destinations are revalidated before fetching. Individual page failures are logged and do not abort the rest of a company's source search.
