@@ -168,7 +168,7 @@ function App() {
             const headquarters = fact("headquarters");
             const countries = fact("countries");
             const employees = fact("employees");
-            const offerings = facts.filter(item => /products|services|solutions|segments/i.test(item.evidence + " " + item.value));
+            const offerings = [fact("products_services")].filter((item): item is NonNullable<typeof item> => Boolean(item));
             const sentence = (value: string) => value ? value.trim().replace(/^([a-z])/, letter => letter.toUpperCase()).replace(/\s+/g, " ") : "";
             const sourceLink = (item?: typeof facts[number]) => item ? <a className="profile-source" href={item.sourceUrl} target="_blank" rel="noreferrer">Source <ArrowUpRight size={12}/></a> : null;
             return <div className="profile-grid">
