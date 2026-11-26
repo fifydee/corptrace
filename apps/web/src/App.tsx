@@ -28,7 +28,7 @@ type FilingPayload = {
 type NarrativeResearch = {
   source: string;
   companyName?: string;
-  officialSources?: { sourceSearch: string; retrievedAt: string; notice: string; sources: { title: string; url: string; domain: string; pageType: string; retrievedAt: string; evidence: { heading: string; paragraph: number; excerpt: string }[] }[] }; form: string; filedAt: string; reportDate: string;
+  officialSources?: { sourceSearch: string; retrievedAt: string; notice: string; sources: { title: string; url: string; domain: string; pageType: string; identityCheck: "matched_company_name" | "not_confirmed"; retrievedAt: string; evidence: { heading: string; paragraph: number; excerpt: string }[] }[] }; form: string; filedAt: string; reportDate: string;
   documentUrl: string; retrievedAt: string; notice: string;
   sections: { key: string; title: string; content: string | null; dataStatus: string; note: string }[];
   topicCoverage?: { topic: string; status: string; evidenceSections: { key: string; title: string; dataStatus: string }[]; limitation: string }[];
@@ -162,7 +162,7 @@ function App() {
           <div className="filing-research-head"><div><label>COMPANY-PUBLISHED INFORMATION</label><h2>Official company website research</h2><p>Web search for annual reports, investor-relations pages and company-published facts · Retrieved {new Date(narrative.officialSources.retrievedAt).toLocaleString()}</p></div></div>
           <div className="extraction-note"><ShieldCheck size={16}/>{narrative.officialSources.notice}</div>
           {narrative.officialSources.sources.length ? <div className="filing-sections">{narrative.officialSources.sources.map((source,index)=><article key={source.url+index}>
-            <div><h3>{source.title}</h3><span className="extraction-status">Company-domain match · {source.pageType}</span></div>
+            <div><h3>{source.title}</h3><span className="extraction-status">Company name matched · {source.pageType}</span></div>
             <p><b>Source:</b> {source.domain} · <a href={source.url} target="_blank" rel="noreferrer">Open original page <ArrowUpRight size={12}/></a></p>
             {source.evidence.map((item,i)=><blockquote key={i}><b>{item.heading} · extracted text block {item.paragraph}</b><p>{item.excerpt}</p></blockquote>)}
           </article>)}</div> : <p className="empty-section">No company-domain pages with relevant evidence were retrieved in this search. CorpTrace will not substitute third-party blogs or unsupported estimates.</p>}
