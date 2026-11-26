@@ -10,8 +10,10 @@ const compiled = ts.transpileModule(source, {
 const mod = await import("data:text/javascript;base64," + Buffer.from(compiled).toString("base64"));
 
 test("decodes HTML entities and preserves readable paragraph boundaries", () => {
-  assert.equal(mod.textOf("<p>Dell &amp; Co. has &#57;7,000 employees.</p><p>Second paragraph.</p>"),
-    "Dell & Co. has 97,000 employees.\\nSecond paragraph.");
+  assert.equal(
+    mod.textOf("<p>Dell &amp; Co. has &#57;7,000 employees.</p><p>Second paragraph.</p>"),
+    ["Dell & Co. has 97,000 employees.", "Second paragraph."].join("\n")
+  );
 });
 
 test("unwraps DuckDuckGo redirect links and rejects unsafe protocols", () => {
@@ -54,7 +56,6 @@ test("extracts source-attributed company facts without treating facility square 
   assert.match(facts.find(x => x.key === "business")?.value ?? "", /global technology company/i);
 });
 
-
 test("filters irrelevant financial footnotes from company profile evidence and normalises sentence starts", () => {
   const html = [
     "<h2>Company Overview</h2>",
@@ -74,7 +75,6 @@ test("filters irrelevant financial footnotes from company profile evidence and n
   assert.ok(evidence.some(x => /global technology company/i.test(x.excerpt)));
   assert.ok(evidence.some(x => /personal computers, servers/i.test(x.excerpt)));
 });
-
 
 test("rejects stock-compensation paragraphs even when they mention employees and services", () => {
   const html = [
