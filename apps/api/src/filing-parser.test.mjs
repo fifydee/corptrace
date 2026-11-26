@@ -32,15 +32,15 @@ test("prefers a substantive section heading over a table-of-contents entry", () 
 
 test("recognises SEC Item headings separated by em dashes", () => {
   const text = [
-    "ITEM 1 — BUSINESS",
+    "ITEM 1 &mdash; BUSINESS",
     "The company designs and sells products in several markets and supports customers globally.",
     "Its operations include research, manufacturing, distribution and customer support activities.",
-    "ITEM 1A — RISK FACTORS",
+    "ITEM 1A &mdash; RISK FACTORS",
     "This risk disclosure must not be included in the business section."
   ].join("\n");
   const patterns = [/ITEM\s+1[-.\s:—–]+BUSINESS/i];
-  const heading = findSectionHeading(text, patterns);
-  const section = extractItemSection(text, patterns);
+  const heading = findSectionHeading(decoded, patterns);
+  const section = extractItemSection(decoded, patterns);
   assert.equal(heading?.line, 0);
   assert.match(section ?? "", /designs and sells products/);
   assert.doesNotMatch(section ?? "", /risk disclosure/);
