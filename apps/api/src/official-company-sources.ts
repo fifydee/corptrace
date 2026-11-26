@@ -139,7 +139,7 @@ export async function findOfficialCompanySources(companyName:string, selectedTop
   const sources:CompanySource[]=[];
   for(const candidate of candidates){
     try{
-      const response=await fetch(candidate.url,{headers:{"User-Agent":"Mozilla/5.0 (compatible; CorpTraceResearch/2.0)","Accept":"text/html,application/xhtml+xml"},redirect:"follow"});
+      const response=await fetch(candidate.url,{headers:{"User-Agent":"Mozilla/5.0 (compatible; CorpTraceResearch/2.0)","Accept":"text/html,application/xhtml+xml"},redirect:"follow",signal:AbortSignal.timeout(10000)});
       if(!response.ok || !(response.headers.get("content-type")??"").includes("text/html"))continue;
       const url=response.url||candidate.url, html=(await response.text()).slice(0,2_000_000), pageText=textOf(html);
       const title=decode(html.match(/<title[^>]*>([\s\S]*?)<\/title>/i)?.[1]??candidate.title).replace(/<[^>]+>/g," ").trim().slice(0,180);
