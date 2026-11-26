@@ -75,7 +75,7 @@ test("retains workforce disclosures appearing later in long annual filing sectio
     "ITEM 1A. | RISK FACTORS",
     "This later risk disclosure must not be included in the business section."
   ].join("\n");
-  const section = extractItemSection(text, [/ITEM\\s+1[-.\\s:|—–]+BUSINESS/i]);
+  const section = extractItemSection(text, [/ITEM\s+1[-.\s:|—–]+BUSINESS/i]);
   assert.ok((section?.length ?? 0) > 14000);
   assert.match(section ?? "", /97,000 employees/);
   assert.doesNotMatch(section ?? "", /later risk disclosure/);
