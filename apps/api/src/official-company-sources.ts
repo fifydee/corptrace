@@ -43,37 +43,76 @@ export function cleanUrl(href: string, base: string): string | null {
     return u.toString();
   } catch { return null; }
 }
-async function searchWeb(query: string): Promise<Array<{ title: string; url: string; snippet: string }>> {
-  const endpoint = "https://html.duckduckgo.com/html/?q=" + encodeURIComponent(query);
-  const response = await fetch(endpoint, {
-    headers: {
-      "User-Agent": "Mozilla/5.0 (compatible; CorpTraceResearch/2.0)",
-      "Accept": "text/html"
-    },
-    signal: AbortSignal.timeout(10000)
-  });
-  if (!response.ok) return [];
-
-  const html = await response.text();
+function attribute(tag: string, name: string): string {
+  const match = tag.match(new RegExp("\\b" + name + "\\s*=\\s*(['\"])(.*?)\\1", "i"));
+  return match?.[2] ?? "";
+}
+function parseDuckDuckGoResults(html: string, endpoint: string): Array<{ title: string; url: string; snippet: string }> {
   const results: Array<{ title: string; url: string; snippet: string }> = [];
-  const matches = [...html.matchAll(/<div class="result[^"]*"[^>]*>([\s\S]*?)<\/div>\s*<\/div>/gi)];
-  const source = matches.length ? matches.map(match => match[1]).join(String.fromCharCode(10)) : html;
-
-  for (const match of source.matchAll(/<a[^>]+class="result__a"[^>]+href="([^"]+)"[^>]*>([\s\S]*?)<\/a>/gi)) {
-    const url = cleanUrl(decode(match[1]), endpoint);
-    if (!url || results.some(item => item.url === url)) continue;
-
+  for (const match of html.matchAll(/<a\b[^>]*>[\s\S]*?<\/a>/gi)) {
+    const tag = match[0];
+    if (!/\bresult__a\b/i.test(attribute(tag, "class"))) continue;
+    const url = cleanUrl(attribute(tag, "href"), endpoint);
+    const title = textOf(tag.replace(/^<a\b[^>]*>/i, "").replace(/<\/a>$/i, "")).slice(0, 180);
+    if (!url || !title || results.some(item => item.url === url)) continue;
     const offset = match.index ?? 0;
-    const after = source.slice(offset, offset + 2400);
-    const snippetMatch = after.match(/class="result__snippet"[^>]*>([\s\S]*?)<\/a>|class="result__snippet"[^>]*>([\s\S]*?)<\/div>/i);
-    results.push({
-      title: textOf(match[2]).slice(0, 180),
-      url,
-      snippet: textOf(snippetMatch?.[1] ?? snippetMatch?.[2] ?? "").slice(0, 500)
-    });
+    const nearby = html.slice(Math.max(0, offset - 900), Math.min(html.length, offset + 2600));
+    const snippetMatch = nearby.match(/class=["'][^"']*result__snippet[^"']*["'][^>]*>([\s\S]*?)<\/(?:a|div)>/i);
+    results.push({ title, url, snippet: textOf(snippetMatch?.[1] ?? "").slice(0, 500) });
     if (results.length >= 10) break;
   }
   return results;
+}
+function parseBingResults(html: string): Array<{ title: string; url: string; snippet: string }> {
+  const results: Array<{ title: string; url: string; snippet: string }> = [];
+  const blocks = [...html.matchAll(/<li\b[^>]*class=["'][^"']*\bb_algo\b[^"']*["'][^>]*>([\s\S]*?)<\/li>/gi)];
+  for (const block of blocks) {
+    const content = block[1];
+    const heading = content.match(/<h2\b[^>]*>([\s\S]*?)<\/h2>/i)?.[1] ?? "";
+    const anchor = heading.match(/<a\b[^>]*>[\s\S]*?<\/a>/i)?.[0] ?? "";
+    const url = cleanUrl(attribute(anchor, "href"), "https://www.bing.com/");
+    const title = textOf(anchor.replace(/^<a\b[^>]*>/i, "").replace(/<\/a>$/i, "")).slice(0, 180);
+    if (!url || !title || results.some(item => item.url === url)) continue;
+    const snippet = content.match(/<(?:p|div)\b[^>]*class=["'][^"']*(?:b_caption|b_snippet)[^"']*["'][^>]*>([\s\S]*?)<\/(?:p|div)>/i)?.[1]
+      ?? content.match(/<p\b[^>]*>([\s\S]*?)<\/p>/i)?.[1]
+      ?? "";
+    results.push({ title, url, snippet: textOf(snippet).slice(0, 500) });
+    if (results.length >= 10) break;
+  }
+  return results;
+}
+async function searchWeb(query: string): Promise<Array<{ title: string; url: string; snippet: string }>> {
+  const endpoint = "https://html.duckduckgo.com/html/?q=" + encodeURIComponent(query) + "&kl=us-en";
+  try {
+    const response = await fetch(endpoint, {
+      headers: {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120.0.0.0 Safari/537.36",
+        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+        "Accept-Language": "en-US,en;q=0.9"
+      },
+      signal: AbortSignal.timeout(10000)
+    });
+    if (response.ok) {
+      const html = await response.text();
+      const results = parseDuckDuckGoResults(html, endpoint);
+      if (results.length) return results;
+    }
+  } catch {/* Fall through to the alternate search provider. */}
+  try {
+    const endpoint = "https://www.bing.com/search?q=" + encodeURIComponent(query);
+    const response = await fetch(endpoint, {
+      headers: {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120.0.0.0 Safari/537.36",
+        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+        "Accept-Language": "en-US,en;q=0.9"
+      },
+      signal: AbortSignal.timeout(10000)
+    });
+    if (!response.ok) return [];
+    return parseBingResults(await response.text());
+  } catch {
+    return [];
+  }
 }
 
 export function classify(url: string, companyName: string): CompanySource["sourceType"] {
