@@ -76,6 +76,9 @@ test("unwraps Bing click tracking URLs before source retrieval", () => {
 test("does not mistake a third-party domain containing a company token for the company itself", () => {
   assert.equal(mod.classify("https://dell-careers.example.org/jobs", "Dell Technologies"), "other");
   assert.equal(mod.classify("https://www.dell.com/about", "Dell Technologies"), "company");
+  assert.equal(mod.classify("https://investors.delltechnologies.com/", "Dell Technologies"), "company");
+  assert.equal(mod.classify("https://www.marketwatch.com/story/dell", "Dell Technologies"), "business_publication");
+  assert.equal(mod.classify("https://uk.finance.yahoo.com/news/dell", "Dell Technologies"), "business_publication");
   assert.equal(mod.classify("https://www.sec.gov/Archives/edgar/data/1/filing.htm", "Dell Technologies"), "regulator");
 });
 
