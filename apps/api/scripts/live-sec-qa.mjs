@@ -64,6 +64,7 @@ const companies = [
     expectedName: /Dell Technologies/i,
     employeePattern: /97,000\s+employees/i,
     employeeLabel: "approximately 97,000 employees",
+    employeeFactValue: "97,000",
     headquartersPattern: /Round Rock/i,
   },
   {
@@ -72,6 +73,7 @@ const companies = [
     expectedName: /Walmart/i,
     employeePattern: /2\.1\s+million\s+associates/i,
     employeeLabel: "approximately 2.1 million associates",
+    employeeFactValue: "2.1 million",
     headquartersPattern: /Bentonville/i,
   },
   {
@@ -80,6 +82,7 @@ const companies = [
     expectedName: /Pfizer/i,
     employeePattern: /75,000\s+people/i,
     employeeLabel: "approximately 75,000 people",
+    employeeFactValue: "75,000",
     headquartersPattern: /New York City/i,
   },
 ];
@@ -123,7 +126,7 @@ for (const company of companies) {
 
       const profileFacts = body.officialSources?.facts ?? [];
       const employeeFact = profileFacts.find((fact) => fact.key === "employees");
-      if (!employeeFact || !company.employeePattern.test(employeeFact.value)) {
+      if (!employeeFact || employeeFact.value !== company.employeeFactValue) {
         errors.push("SEC fallback profile facts did not extract " + company.employeeLabel + "; received: " + (employeeFact?.value ?? "no employee fact"));
       }
       const headquartersFact = profileFacts.find((fact) => fact.key === "headquarters");
