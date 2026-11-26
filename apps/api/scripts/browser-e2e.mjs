@@ -10,9 +10,9 @@ async function openMicrosoftResearch(page) {
   await page.getByRole("button", { name: /Find a company/i }).first().click();
   const search = page.getByPlaceholder(/Try Microsoft, Apple, Toyota or MSFT/i);
   await search.fill("Microsoft");
-  await page.getByRole("button").filter({ hasText: /Microsoft Corporation/ }).first().waitFor({ state: "visible", timeout: 20000 });
-  await page.getByRole("button").filter({ hasText: /Microsoft Corporation/ }).first().click();
-  await page.getByRole("heading", { name: /Microsoft Corporation/ }).first().waitFor({ state: "visible" });
+  await page.getByRole("button").filter({ hasText: /MICROSOFT CORP|Microsoft Corporation/i }).first().waitFor({ state: "visible", timeout: 20000 });
+  await page.getByRole("button").filter({ hasText: /MICROSOFT CORP|Microsoft Corporation/i }).first().click();
+  await page.getByRole("heading", { name: /MICROSOFT CORP|Microsoft Corporation/i }).first().waitFor({ state: "visible" });
   await page.getByLabel("Company overview and history").check();
 }
 
@@ -30,7 +30,7 @@ try {
         contentType: "application/json",
         body: JSON.stringify({
           source: "CorpTrace research",
-          companyName: "Microsoft Corporation",
+          companyName: "MICROSOFT CORP",
           form: "10-K",
           filedAt: "2026-07-30",
           reportDate: "2026-06-30",
