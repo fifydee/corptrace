@@ -107,7 +107,7 @@ export function extractFacts(sources: CompanySource[]): CompanyFact[] {
   const definitions: Array<{key:string;label:string;re:RegExp}>=[
     {key:"business",label:"Company overview",re:/\b((?:is|are)\s+(?:a|an)\s+[^.!?]{15,220}(?:company|provider|manufacturer|technology|retailer|platform|business|services|products)[^.!?]{0,180})[.!?]/i},
     {key:"founded",label:"Founded",re:/\b(?:founded|established|incorporated)\s+(?:in\s+)?(?:in\s+)?(?:the year\s+)?(\d{4})\b/i},
-    {key:"headquarters",label:"Headquarters",re:/\b(?:headquartered\s+(?:in|at)|headquarters(?:\s+(?:are|is))?\s+(?:located\s+)?(?:in|at)|principal executive offices(?:\s+(?:are|is))?\s+(?:located\s+)?(?:in|at)|principal offices\s+(?:are\s+)?(?:located\s+)?(?:in|at)|based\s+(?:in|at))\s+([^.;]{3,100})/i},
+    {key:"headquarters",label:"Headquarters",re:/\b(?:headquartered\s+(?:in|at)|headquarters(?:\s+(?:are|is))?\s+(?:located\s+)?(?:in|at)|principal executive offices(?:\s+(?:are|is))?\s+(?:(?:located\s+)?(?:in|at)\s+)?|principal offices\s+(?:are\s+)?(?:located\s+)?(?:in|at)|based\s+(?:in|at))\s+([^.;]{3,100})/i},
     {key:"employees",label:"Employees",re:/\b(?:approximately\s+|about\s+|more than\s+|over\s+)?([\d,]+(?:\.\d+)?\s*(?:million|thousand)?)\s+(?:employees|associates|team members|people)\b/i},
     {key:"offices",label:"Offices / locations",re:/\b([\d,]+)\s+(?:offices|office locations|locations|sites)\b/i},
     {key:"countries",label:"Countries of operation",re:/\b(?:conducted business in|conduct business in|operates in|operate in|operates across|operating in|across|in)\s+(?:(?:more than|over)\s+)?([\d,]+)\s+countries\b/i},
