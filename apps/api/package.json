@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "wrangler dev",
     "build": "tsc --noEmit",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test": "node --test src/filing-parser.test.mjs"
   },
   "devDependencies": {
     "typescript": "~5.7.2",
