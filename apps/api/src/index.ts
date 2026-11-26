@@ -386,14 +386,18 @@ function buildResearchFindings(
       topic, status: "not_searched", evidence: [],
       explanation: "This topic is not covered by the annual filing search alone. A separate current-news or external-source search is required.",
     };
-    const patterns = topicEvidencePatterns[topic] ?? [];\n    if (!patterns.length) return { topic, status: "not_searched", evidence: [], explanation: "No topic-specific evidence rule is configured yet. A broad filing section is not treated as an answer to this question." };\n    if (!patterns.length) return { topic, status: "not_searched", evidence: [], explanation: "No topic-specific evidence rule is configured yet. A broad filing section is not treated as an answer to this question." };
+    const patterns = topicEvidencePatterns[topic] ?? [];
+    if (!patterns.length) return { topic, status: "not_searched", evidence: [], explanation: "No topic-specific evidence rule is configured yet. A broad filing section is not treated as an answer to this question." };
+    if (!patterns.length) return { topic, status: "not_searched", evidence: [], explanation: "No topic-specific evidence rule is configured yet. A broad filing section is not treated as an answer to this question." };
+    if (!patterns.length) return { topic, status: "not_searched", evidence: [], explanation: "No topic-specific evidence rule is configured yet. A broad filing section is not treated as an answer to this question." };
     if (!patterns.length) return {
       topic, status: "not_searched", evidence: [],
       explanation: "No topic-specific evidence rule is configured yet. CorpTrace will not treat a broad filing section as an answer to this question.",
     };
     const evidence: ResearchFinding["evidence"] = [];
     for (const section of sections.filter(item => keys.includes(item.key) && item.content)) {
-      const lines = (section.content ?? "").split(/(?<=[.!?])\s+|\n+/).map(line => line.trim()).filter(Boolean);
+      const lines = (section.content ?? "").split(/(?<=[.!?])\s+|
++/).map(line => line.trim()).filter(Boolean);
       for (const line of lines) {
         if (patterns.some(pattern => pattern.test(line))) {
           const excerpt = line.slice(0, 700);
@@ -425,7 +429,8 @@ async function getCompanyResearch(cik: string, userAgent: string, selectedTopics
   if (!submissionsResponse.ok) return json({ error: "SEC filing submissions request failed.", upstreamStatus: submissionsResponse.status }, 502);
   const submissions = await submissionsResponse.json() as SubmissionPayload;
   const companyName = submissions.name ?? "Unknown company";
-  const profileTopics = selectedTopics.filter(topic => ["Company overview and history","Headquarters and registered locations","Operating regions and countries","Offices and facilities","Products and services","Employee count and workforce","Employee geography and nationalities","Workforce by country or region","Gender representation (where disclosed)"].includes(topic));\n  const officialSourcesPromise = profileTopics.length ? findOfficialCompanySources(companyName, profileTopics).catch(() => ({
+  const profileTopics = selectedTopics.filter(topic => ["Company overview and history","Headquarters and registered locations","Operating regions and countries","Offices and facilities","Products and services","Employee count and workforce","Employee geography and nationalities","Workforce by country or region","Gender representation (where disclosed)"].includes(topic));
+  const officialSourcesPromise = profileTopics.length ? findOfficialCompanySources(companyName, profileTopics).catch(() => ({
     sourceSearch: "unavailable", retrievedAt: new Date().toISOString(), sources: [], facts: [], overview: null,
     notice: "External company website discovery could not be completed; the SEC filing will still be searched as a profile source.",
   })) : Promise.resolve({ sourceSearch: "not_requested", retrievedAt: new Date().toISOString(), sources: [], facts: [], overview: null, notice: "No company-profile topics were selected; profile source discovery was not run." });
@@ -509,7 +514,9 @@ async function getCompanyResearch(cik: string, userAgent: string, selectedTopics
     documentUrl,
     retrievedAt: new Date().toISOString(),
     status: "filing_sections_extracted",
-    sections,\n    topicCoverage: buildTopicCoverage(selectedTopics, sections),\n    findings: buildResearchFindings(selectedTopics, sections, documentUrl),
+    sections,
+    topicCoverage: buildTopicCoverage(selectedTopics, sections),
+    findings: buildResearchFindings(selectedTopics, sections, documentUrl),
     notice: "The report searches selected topics within the latest identified annual filing. Evidence excerpts are source-attributed, not independently audited. A not-found result means no matching disclosure was found in the sections reviewed, not that the information does not exist elsewhere."
   });
 }
