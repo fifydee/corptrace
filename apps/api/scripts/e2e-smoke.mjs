@@ -1,9 +1,8 @@
 import assert from "node:assert/strict";
 
 const base = (process.env.CORPTRACE_WEB_URL ?? "http://127.0.0.1:4173").replace(/\/$/, "");
-const timeout = { signal: AbortSignal.timeout(30000) };
 async function get(path) {
-  const response = await fetch(base + path, timeout);
+  const response = await fetch(base + path, { signal: AbortSignal.timeout(30000) });
   const text = await response.text();
   let body;
   try { body = JSON.parse(text); } catch { body = null; }
@@ -34,7 +33,7 @@ assert.ok(submissions.body?.data?.filings?.recent?.form?.length);
 assert.match(submissions.body?.data?.name ?? "", /Microsoft/i);
 
 const metrics = await get("/sec/company/0000789019/metrics");
-assert.equal(metrics.body?.source, "SEC XBRL");
+assert.equal(metrics.body?.source, "SEC EDGAR company facts");
 assert.ok(Array.isArray(metrics.body?.metrics));
 
 process.stdout.write(JSON.stringify({
