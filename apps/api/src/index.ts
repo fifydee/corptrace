@@ -360,7 +360,6 @@ const topicEvidencePatterns: Record<string, RegExp[]> = {
   "Employee geography and nationalities": [/\b[0-9][0-9,.]*\s*(?:employees|people)\b.{0,100}\b(?:U\.S\.|United States|international|Europe|Asia|Africa|Americas|country|region)\b|employees? (?:in|located in)|workforce .* (?:country|region)|international employees|employees outside/i],
   "Workforce by country or region": [/\b[0-9][0-9,.]*\s*(?:employees|people)\b.{0,100}\b(?:U\.S\.|United States|international|Europe|Asia|Africa|Americas|country|region)\b|employees? (?:in|located in)|workforce .* (?:country|region)|international employees|employees outside/i],
   "Gender representation (where disclosed)": [/\b[0-9]+(?:\.[0-9]+)?%\s+(?:of\s+)?(?:employees|workforce|women|men)\b|women represent|female employees|gender representation|men and women/i],
-  "Leadership and compensation": [/executive officers|named executive officers|executive compensation|leadership team/i],
   "Leadership changes and compensation": [/appointed|resigned|retired|chief executive officer|executive compensation/i],
   "Product and service performance": [/product revenue|service revenue|net sales|segment results|product line/i],
   "Most profitable products or services": [/segment operating income|product profitability|gross profit by|operating profit by segment/i],
@@ -387,7 +386,7 @@ function buildResearchFindings(
       topic, status: "not_searched", evidence: [],
       explanation: "This topic is not covered by the annual filing search alone. A separate current-news or external-source search is required.",
     };
-    const patterns = topicEvidencePatterns[topic] ?? [];
+    const patterns = topicEvidencePatterns[topic] ?? [];\n    if (!patterns.length) return { topic, status: "not_searched", evidence: [], explanation: "No topic-specific evidence rule is configured yet. A broad filing section is not treated as an answer to this question." };
     if (!patterns.length) return {
       topic, status: "not_searched", evidence: [],
       explanation: "No topic-specific evidence rule is configured yet. CorpTrace will not treat a broad filing section as an answer to this question.",
