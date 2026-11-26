@@ -4,18 +4,24 @@ import ts from "typescript";
 import { readFile } from "node:fs/promises";
 
 const source = await readFile(new URL("./index.ts", import.meta.url), "utf8");
-const start = source.indexOf("const researchTopicSectionMap");
+const start = source.indexOf("const filingTopics");
 const end = source.indexOf("async function getCompanyResearch", start);
 assert.notEqual(start, -1, "research topic map must exist");
 assert.notEqual(end, -1, "research findings helpers must exist");
 
 let isolated = source.slice(start, end);
 isolated = isolated.replace("function buildResearchFindings(", "export function buildResearchFindings(");
-isolated += "\nexport { researchTopicSectionMap, topicEvidencePatterns };\n";
+isolated += "\nexport { filingTopics, researchTopicSectionMap, topicEvidencePatterns };\n";
 const compiled = ts.transpileModule(isolated, {
   compilerOptions: { module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ES2022 }
 }).outputText;
 const mod = await import("data:text/javascript;base64," + Buffer.from(compiled).toString("base64"));
+
+test("matches real SEC filing heading punctuation used by issuers", () => {
+  const business = mod.filingTopics.find(topic => topic.key === "business");
+  assert.ok(business?.patterns.some(pattern => pattern.test("ITEM 1 — BUSINESS")));
+  assert.ok(business?.patterns.some(pattern => pattern.test("ITEM 1. | BUSINESS")));
+});
 
 test("recognises Walmart's scaled associate count in workforce findings", () => {
   const findings = mod.buildResearchFindings(
