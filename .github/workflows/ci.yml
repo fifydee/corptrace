@@ -31,6 +31,35 @@ jobs:
       - name: Build web app
         run: npm run build --workspace @corptrace/web
 
+  live-company-source-qa:
+    needs: validate
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    permissions:
+      contents: read
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22.12.0
+      - name: Install dependencies from lockfile
+        run: npm ci
+      - name: Exercise live company-source discovery
+        run: CORPTRACE_RUN_EXTERNAL_SOURCE_QA=1 npm run test:live --workspace @corptrace/api
+        env:
+          CORPTRACE_SEC_USER_AGENT: "CorpTrace live source QA/0.1 (corptrace@protonmail.com)"
+      - name: Upload live company-source QA report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: live-company-source-qa-report
+          path: apps/api/live-company-source-qa-report.json
+          if-no-files-found: ignore
+
   live-sec-qa:
     needs: validate
     runs-on: ubuntu-latest
@@ -40,6 +69,8 @@ jobs:
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
