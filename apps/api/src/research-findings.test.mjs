@@ -45,7 +45,7 @@ test("searches Item 2 properties for headquarters disclosures", () => {
 test("avoids generic business references as company overviews and non-specific operation references as geographic facts", () => {
   const overview = mod.buildResearchFindings(
     ["Company overview and history"],
-    [{ key: "business", title: "Business", content: "Our business is conducted in intensely competitive and highly regulated markets." }],
+    [{ key: "business", title: "Business", content: "Company Overview. Our business is conducted in intensely competitive and highly regulated markets." }],
     "https://www.sec.gov/Archives/edgar/data/78003/000007800326000026/pfe-20251231.htm"
   );
   assert.equal(overview[0].status, "not_found_in_filing");
