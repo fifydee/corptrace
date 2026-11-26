@@ -55,7 +55,7 @@ async function searchOfficialPages(query: string, terms: string[]): Promise<Arra
     const host = new URL(url).hostname.toLowerCase().replace(/^www\./, "");
     // Only retain domains containing a distinctive company-name token.
     if (!terms.some(term => host.split(".").some(label => label === term || label.startsWith(term)))) continue;
-    const title = plainText(link[0].replace(/<\\/a>$/i, "").replace(/^<a\\b[^>]*>/i, "")).slice(0, 180);
+    const title = plainText(match[2]).slice(0, 180);
     if (!results.some(item => item.url === url)) results.push({ title: title || host, url });
     if (results.length >= 8) break;
   }
