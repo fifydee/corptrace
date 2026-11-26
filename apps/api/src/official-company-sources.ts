@@ -160,6 +160,9 @@ async function searchWeb(query: string): Promise<Array<{ title: string; url: str
         if(!newsResults.length) console.warn("CorpTrace Google News RSS returned no publisher results", {
           status: newsResponse.status, bodyLength: newsXml.length, itemMarkup: /<item\b/i.test(newsXml), query: query.slice(0,160)
         });
+        else console.log("CorpTrace Google News RSS parsed publisher results", {
+          count: newsResults.length, publishers: newsResults.slice(0,5).map(result=>result.publisherUrl), query: query.slice(0,160)
+        });
         const merged = [...results, ...newsResults].filter((item,index,all)=>all.findIndex(other=>other.url===item.url)===index);
         return merged.slice(0,25);
       } catch (error) {
@@ -259,10 +262,12 @@ export async function findOfficialCompanySources(companyName:string, selectedTop
   const resultSets=await Promise.all(queries.map(q=>searchWeb(q).catch(()=>[])));
   const rawCandidates=resultSets.flat().map(result=>({...result,url:cleanUrl(result.url,"https://www.bing.com/")??result.url})).filter((r,i,a)=>a.findIndex(x=>x.url===r.url)===i);
   const relevantCandidates=rawCandidates
-    .filter(r=>{const hay=normalise(r.title+" "+r.snippet+" "+r.url);return terms.some(t=>hay.includes(t));});
+    .filter(r=>{const hay=normalise(r.title+" "+r.snippet+" "+r.url);return terms.some(t=>hay.includes(t));})
+    .filter(result=>classify(result.publisherUrl??result.url,companyName)!=="other");
   const candidates=[
-    ...relevantCandidates.filter(result=>Boolean(result.publisherUrl)),
-    ...relevantCandidates.filter(result=>!result.publisherUrl),
+    ...relevantCandidates.filter(result=>classify(result.publisherUrl??result.url,companyName)==="business_publication"),
+    ...relevantCandidates.filter(result=>classify(result.publisherUrl??result.url,companyName)==="company"),
+    ...relevantCandidates.filter(result=>classify(result.publisherUrl??result.url,companyName)==="regulator"),
   ].slice(0,18);
   if(!candidates.length) console.warn("CorpTrace search produced no company-matched candidates", {companyName, queryResultCounts:resultSets.map(set=>set.length), rawCandidateCount:rawCandidates.length, sampleResults:rawCandidates.slice(0,5).map(result=>({title:result.title,url:result.url}))});
   const sources:CompanySource[]=[];
