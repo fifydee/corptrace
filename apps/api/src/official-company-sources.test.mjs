@@ -49,6 +49,13 @@ test("unwraps DuckDuckGo redirect links and rejects unsafe protocols", () => {
   assert.equal(mod.cleanUrl("http://example.com", "https://example.com"), null);
 });
 
+test("removes search-engine tracking parameters from canonical source URLs", () => {
+  assert.equal(
+    mod.cleanUrl("https://www.dell.com/en-us?msockid=abc123&utm_source=bing", "https://www.bing.com/search"),
+    "https://www.dell.com/en-us"
+  );
+});
+
 test("unwraps Bing click tracking URLs before source retrieval", () => {
   const target = "https://www.dell.com/en-us/about";
   const encoded = "a1" + Buffer.from(target).toString("base64url");
@@ -87,6 +94,38 @@ test("extracts source-attributed company facts without treating facility square 
   assert.match(facts.find(x => x.key === "headquarters")?.value ?? "", /One Dell Way/);
   assert.equal(facts.some(x => x.key === "offices"), false);
   assert.match(facts.find(x => x.key === "business")?.value ?? "", /global technology company/i);
+});
+
+test("retains source-specific fact conflicts but excludes unclassified third-party facts", () => {
+  const sources = [
+    {
+      title: "Company workforce page",
+      url: "https://www.dell.com/about",
+      domain: "dell.com",
+      sourceType: "company",
+      retrievedAt: "2026-11-26T00:00:00.000Z",
+      evidence: [{ heading: "Workforce", paragraph: 1, excerpt: "Dell Technologies employs approximately 97,000 employees worldwide." }]
+    },
+    {
+      title: "SEC annual report",
+      url: "https://www.sec.gov/Archives/edgar/data/1/filing.htm",
+      domain: "sec.gov",
+      sourceType: "regulator",
+      retrievedAt: "2026-11-26T00:00:00.000Z",
+      evidence: [{ heading: "Business", paragraph: 1, excerpt: "As of January 30, 2026, we had approximately 96,000 employees." }]
+    },
+    {
+      title: "Unclassified blog",
+      url: "https://example.org/dell",
+      domain: "example.org",
+      sourceType: "other",
+      retrievedAt: "2026-11-26T00:00:00.000Z",
+      evidence: [{ heading: "About", paragraph: 1, excerpt: "Dell has 1,000 employees according to this unverified blog." }]
+    }
+  ];
+  const facts = mod.extractFacts(sources).filter(fact => fact.key === "employees");
+  assert.deepEqual(facts.map(fact => fact.value), ["97,000", "96,000"]);
+  assert.deepEqual(facts.map(fact => fact.sourceUrl), ["https://www.dell.com/about", "https://www.sec.gov/Archives/edgar/data/1/filing.htm"]);
 });
 
 test("filters irrelevant financial footnotes from company profile evidence and normalises sentence starts", () => {
