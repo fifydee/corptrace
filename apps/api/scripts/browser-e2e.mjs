@@ -146,6 +146,36 @@ try {
     await page.close();
   }
 
+  {
+    const page = await browser.newPage({ viewport: { width: 1280, height: 900 } });
+    await page.goto(base, { waitUntil: "domcontentloaded" });
+    const audit = await page.evaluate(() => {
+      const controls = [...document.querySelectorAll('button, a[href], input:not([type="hidden"]), select, textarea')];
+      const unnamed = controls.filter(element => {
+        const explicit = element.getAttribute("aria-label")?.trim();
+        const labelledBy = element.getAttribute("aria-labelledby");
+        const referenced = labelledBy && labelledBy.split(/\\s+/).some(id => document.getElementById(id)?.textContent?.trim());
+        const associated = element.labels && [...element.labels].some(label => label.textContent.trim());
+        const content = ["BUTTON", "A"].includes(element.tagName) && element.textContent.trim();
+        return !(explicit || referenced || associated || content);
+      }).map(element => ({ tag: element.tagName, type: element.getAttribute("type"), html: element.outerHTML.slice(0, 180) }));
+      const ids = [...document.querySelectorAll("[id]")].map(element => element.id);
+      const duplicateIds = [...new Set(ids.filter((id, index) => ids.indexOf(id) !== index))];
+      return {
+        mainLandmarks: document.querySelectorAll("main").length,
+        primaryNavigation: document.querySelectorAll('nav[aria-label="Primary navigation"]').length,
+        unnamedControls: unnamed,
+        duplicateIds
+      };
+    });
+    assert.equal(audit.mainLandmarks, 1, "each page view should expose one main landmark");
+    assert.equal(audit.primaryNavigation, 1, "primary navigation should be named");
+    assert.deepEqual(audit.unnamedControls, [], `interactive controls should have accessible names: ${JSON.stringify(audit.unnamedControls)}`);
+    assert.deepEqual(audit.duplicateIds, [], `document IDs should be unique: ${JSON.stringify(audit.duplicateIds)}`);
+    results.push("page exposes named primary navigation and one main landmark", "interactive controls have accessible names", "document IDs are unique");
+    await page.close();
+  }
+
   process.stdout.write(JSON.stringify({ result: "passed", browser: "Chromium", checks: results }) + "\n");
 } finally {
   await browser.close();
