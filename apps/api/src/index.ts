@@ -1,4 +1,4 @@
-import { cleanFilingText, findSectionHeading, extractItemSection } from "./filing-parser.js";
+import { cleanFilingText, findSectionHeading, extractItemSection } from "./filing-parser.mjs";
 
 export interface Env {
   APP_ENV?: string;
