@@ -11,8 +11,7 @@ const mod = await import("data:text/javascript;base64," + Buffer.from(compiled).
 
 test("decodes HTML entities and preserves readable paragraph boundaries", () => {
   assert.equal(mod.textOf("<p>Dell &amp; Co. has &#57;7,000 employees.</p><p>Second paragraph.</p>"),
-    "Dell & Co. has 97,000 employees.
-Second paragraph.");
+    "Dell & Co. has 97,000 employees.\\nSecond paragraph.");
 });
 
 test("unwraps DuckDuckGo redirect links and rejects unsafe protocols", () => {
