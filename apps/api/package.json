@@ -7,7 +7,8 @@
     "dev": "wrangler dev",
     "build": "tsc --noEmit",
     "typecheck": "tsc --noEmit",
-    "test": "node --test src/filing-parser.test.mjs src/official-company-sources.test.mjs src/research-findings.test.mjs"
+    "test": "node --test src/filing-parser.test.mjs src/official-company-sources.test.mjs src/research-findings.test.mjs",
+    "test:live": "node scripts/live-sec-qa.mjs"
   },
   "devDependencies": {
     "typescript": "~5.7.2",
