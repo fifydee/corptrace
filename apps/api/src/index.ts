@@ -393,8 +393,8 @@ async function getCompanyResearch(cik: string, userAgent: string, selectedTopics
   const submissions = await submissionsResponse.json() as SubmissionPayload;
   const companyName = submissions.name ?? "Unknown company";
   const officialSourcesPromise = findOfficialCompanySources(companyName).catch(() => ({
-    sourceSearch: "unavailable", retrievedAt: new Date().toISOString(), sources: [],
-    notice: "Official company website discovery could not be completed for this request.",
+    sourceSearch: "unavailable", retrievedAt: new Date().toISOString(), sources: [], facts: [], overview: null,
+    notice: "External company website discovery could not be completed; the SEC filing will still be searched as a profile source.",
   }));
   const recent = submissions.filings?.recent;
   const forms = recent?.form ?? [];
