@@ -38,6 +38,7 @@ test("recognises SEC Item headings separated by em dashes", () => {
     "ITEM 1A &mdash; RISK FACTORS",
     "This risk disclosure must not be included in the business section."
   ].join("\n");
+  const decoded = cleanFilingText(text);
   const patterns = [/ITEM\s+1[-.\s:—–]+BUSINESS/i];
   const heading = findSectionHeading(decoded, patterns);
   const section = extractItemSection(decoded, patterns);
