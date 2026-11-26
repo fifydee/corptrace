@@ -33,7 +33,8 @@ jobs:
 
   local-e2e:
     needs: validate
-    runs-on: ubuntu-latest
+    # Playwright 1.56.1 supports Ubuntu 24.04; pin the runner image rather than following ubuntu-latest.
+    runs-on: ubuntu-24.04
     timeout-minutes: 15
     permissions:
       contents: read
