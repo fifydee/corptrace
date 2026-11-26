@@ -34,6 +34,22 @@ On the deployed Worker, open:
 
 Then open the Pages site, search for a company, select the correct SEC registrant and confirm that the research page displays filing dates, source links, metric status and annual-report extracts.
 
+## Automated live SEC research QA
+
+Run the repeatable SEC integration check from the repository root:
+
+```sh
+npm run test:live --workspace @corptrace/api
+```
+
+The test invokes the actual Worker research handler in-process and retrieves current submissions metadata and annual filing HTML from SEC EDGAR for Dell, Walmart and Pfizer. It checks annual filing selection, Item 1 and Item 2 extraction, topic-level workforce findings, headquarters facts, normalized employee counts and Walmart's disclosed international country count. It writes `apps/api/live-sec-qa-report.json`.
+
+The GitHub Actions CI workflow runs this job after the standard audit, unit tests, API type-check, Worker dry-run and web build. The JSON report is uploaded as the `live-sec-qa-report` workflow artifact.
+
+Scope is intentionally limited: the live QA harness stubs external company-web discovery and the Cloudflare rate-limit binding. It does not test the deployed Worker, frontend browser behavior, production Cloudflare settings or the external search provider. It does exercise the SEC submissions and filing-document requests, filing parser, topic matcher and SEC-backed profile fact extraction. A SEC-identifying User-Agent with a contact address is required.
+
+For research, the parser scans up to 250,000 characters of each selected filing section so disclosures later in long Item 1 sections are not missed. API section previews remain capped at 14,000 characters; topic findings and profile facts are extracted from the larger internal search window.
+
 ## Global top-20 research universe
 
 The Explore page starts with a global top-20 profitability reference universe based on the Fortune Global 500 2026 edition (fiscal 2025). It is a discovery and research starting point, not a live TTM ranking. Company reporting periods, accounting definitions and currencies differ. CorpTrace must show only figures traceable to source filings, and must not fill missing ranking values with estimates or silently mix periods.
