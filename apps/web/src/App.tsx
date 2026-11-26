@@ -105,6 +105,19 @@ function App() {
     current.includes(item) ? current.filter(value => value !== item) : [...current, item]
   );
 
+  async function refreshSelectedResearch() {
+    if (!company) return;
+    setResearchLoading(true); setResearchError("");
+    try {
+      const response = await fetch(apiUrl(`/sec/company/${company.cik}/research?topics=${encodeURIComponent(picked.join("|"))}`));
+      const body = await response.json();
+      if (!response.ok) throw new Error(body.error ?? "Could not update the selected research.");
+      setNarrative(body);
+    } catch (error) {
+      setResearchError(error instanceof Error ? error.message : "Research request failed.");
+    } finally { setResearchLoading(false); }
+  }
+
   return <div className="shell">
     <header>
       <button className="brand" onClick={() => setPage("Explore")}><b>C<span>.</span></b><span><strong>CorpTrace</strong><small>COMPANY INTELLIGENCE, MADE CLEAR</small></span></button>
