@@ -42,6 +42,8 @@ The live company-source QA workflow exercises the actual search and page-retriev
 
 Search providers may return anti-bot or rate-limit responses in hosted environments. Search results are canonicalized and click-tracking redirects are unwrapped before retrieval. When a publisher blocks page retrieval, a sufficiently descriptive search-index snippet can be retained as evidence and is explicitly labeled as a search-result snippet rather than a page extraction. Facts from unclassified third-party sites are excluded, source-specific fact conflicts are retained, and the latest SEC filing is prioritized for the primary profile summary. The QA job treats a run without external pages as a failure and retains diagnostics and the report artifact; a successful SEC fallback alone is not considered a pass.
 
+External discovery keeps source-specific facts instead of collapsing conflicting values, excludes unclassified third-party pages from profile-fact extraction, and prioritizes the latest SEC filing when constructing the primary profile summary. Evidence provenance distinguishes a fetched page from a search-index snippet used when a publisher blocks retrieval.
+
 ## Automated live SEC research QA
 
 Run the repeatable SEC integration check from the repository root:
