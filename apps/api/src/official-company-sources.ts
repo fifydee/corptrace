@@ -53,7 +53,12 @@ function classify(url: string): CompanySource["sourceType"] {
   const host = new URL(url).hostname.toLowerCase();
   if (/(sec\.gov|companieshouse\.gov|annualreports\.com)/.test(host)) return "regulator";
   if (/(forbes\.com|businessinsider\.com|reuters\.com|bloomberg\.com|wsj\.com|ft\.com|cnbc\.com|apnews\.com|bbc\.com|theguardian\.com|fortune\.com|nytimes\.com)/.test(host)) return "business_publication";
-  return "company";
+  const terms = companyTermsFromHost(url);
+  return terms ? "company" : "other";
+}
+function companyTermsFromHost(url: string): boolean {
+  const host = new URL(url).hostname.toLowerCase();
+  return /(^|\\.)dell\\.com$|(^|\\.)delltechnologies\\.com$|(^|\\.)delltechnologies\\.com$/.test(host);
 }
 function extractBlocks(html: string): Evidence[] {
   const blocks=[...html.matchAll(/<(h[1-6]|p|li|td)[^>]*>([\s\S]*?)<\/\1>/gi)];
@@ -118,8 +123,10 @@ export async function findOfficialCompanySources(companyName:string):Promise<{
   const facts=extractFacts(ranked);
   const fact=(key:string)=>facts.find(f=>f.key===key)?.value;
   const overviewParts=[
+    fact("business")? fact("business"):null,
     fact("founded")? `Founded in ${fact("founded")}`:null,
     fact("headquarters")? `Headquartered in ${fact("headquarters")}`:null,
+    fact("countries")? `Operates in ${fact("countries")} countries`:null,
     fact("employees")? `The latest retrieved source reports ${fact("employees")} employees`:null,
   ].filter(Boolean);
   const overview=overviewParts.length?overviewParts.join(". ")+".":null;
