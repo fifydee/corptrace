@@ -81,38 +81,76 @@ export function parseBingResults(html: string): Array<{ title: string; url: stri
   }
   return results;
 }
+export function parseBingRssResults(xml: string): Array<{ title: string; url: string; snippet: string }> {
+  const results: Array<{ title: string; url: string; snippet: string }> = [];
+  for (const item of xml.matchAll(/<item\b[^>]*>([\s\S]*?)<\/item>/gi)) {
+    const title = textOf(item[1].match(/<title\b[^>]*>([\s\S]*?)<\/title>/i)?.[1] ?? "").slice(0, 180);
+    const rawUrl = decode(textOf(item[1].match(/<link\b[^>]*>([\s\S]*?)<\/link>/i)?.[1] ?? ""));
+    const url = cleanUrl(rawUrl, "https://www.bing.com/");
+    const snippet = textOf(item[1].match(/<description\b[^>]*>([\s\S]*?)<\/description>/i)?.[1] ?? "").slice(0, 500);
+    if (!title || !url || results.some(result => result.url === url)) continue;
+    results.push({ title, url, snippet });
+    if (results.length >= 10) break;
+  }
+  return results;
+}
 async function searchWeb(query: string): Promise<Array<{ title: string; url: string; snippet: string }>> {
-  const endpoint = "https://html.duckduckgo.com/html/?q=" + encodeURIComponent(query) + "&kl=us-en";
+  const headers = {
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120.0.0.0 Safari/537.36",
+    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+    "Accept-Language": "en-US,en;q=0.9"
+  };
+  const ddgEndpoint = "https://html.duckduckgo.com/html/?q=" + encodeURIComponent(query) + "&kl=us-en";
   try {
-    const response = await fetch(endpoint, {
-      headers: {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120.0.0.0 Safari/537.36",
-        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-        "Accept-Language": "en-US,en;q=0.9"
-      },
-      signal: AbortSignal.timeout(10000)
+    const response = await fetch(ddgEndpoint, { headers, signal: AbortSignal.timeout(10000) });
+    const html = response.ok ? await response.text() : "";
+    const results = parseDuckDuckGoResults(html, ddgEndpoint);
+    if (results.length) return results;
+    console.warn("CorpTrace DuckDuckGo search returned no parsed results", {
+      status: response.status, htmlLength: html.length,
+      resultMarkup: html.includes("result__a"),
+      antiBotPage: /anomaly|unusual traffic|captcha|bot challenge/i.test(html),
+      query: query.slice(0, 160)
     });
-    if (response.ok) {
-      const html = await response.text();
-      const results = parseDuckDuckGoResults(html, endpoint);
-      if (results.length) return results;
-    }
-  } catch {/* Fall through to the alternate search provider. */}
+  } catch (error) {
+    console.warn("CorpTrace DuckDuckGo search request failed", {
+      error: error instanceof Error ? error.message : String(error), query: query.slice(0, 160)
+    });
+  }
   try {
     const endpoint = "https://www.bing.com/search?q=" + encodeURIComponent(query);
+    const response = await fetch(endpoint, { headers, signal: AbortSignal.timeout(10000) });
+    const html = response.ok ? await response.text() : "";
+    const results = parseBingResults(html);
+    if (results.length) return results;
+    console.warn("CorpTrace Bing HTML search returned no parsed results", {
+      status: response.status, htmlLength: html.length,
+      resultMarkup: html.includes("b_algo"), query: query.slice(0, 160)
+    });
+  } catch (error) {
+    console.warn("CorpTrace Bing HTML search request failed", {
+      error: error instanceof Error ? error.message : String(error), query: query.slice(0, 160)
+    });
+  }
+  try {
+    const endpoint = "https://www.bing.com/search?format=rss&q=" + encodeURIComponent(query);
     const response = await fetch(endpoint, {
-      headers: {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120.0.0.0 Safari/537.36",
-        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-        "Accept-Language": "en-US,en;q=0.9"
-      },
+      ...{ headers: { ...headers, "Accept": "application/rss+xml,application/xml;q=0.9,*/*;q=0.8" } },
       signal: AbortSignal.timeout(10000)
     });
-    if (!response.ok) return [];
-    return parseBingResults(await response.text());
-  } catch {
-    return [];
+    const xml = response.ok ? await response.text() : "";
+    const results = parseBingRssResults(xml);
+    if (results.length) return results;
+    console.warn("CorpTrace Bing RSS search returned no parsed results", {
+      status: response.status, bodyLength: xml.length,
+      itemMarkup: /<item\b/i.test(xml), query: query.slice(0, 160)
+    });
+  } catch (error) {
+    console.warn("CorpTrace Bing RSS search request failed", {
+      error: error instanceof Error ? error.message : String(error), query: query.slice(0, 160)
+    });
   }
+  return [];
 }
 
 export function classify(url: string, companyName: string): CompanySource["sourceType"] {
