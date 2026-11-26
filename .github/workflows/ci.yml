@@ -112,6 +112,8 @@ jobs:
       - name: Install dependencies from lockfile
         run: npm ci
       - name: Exercise live company-source discovery
+        # Search-engine and publisher availability is outside the app's control; retain failures as visible QA diagnostics without masking deterministic CI checks.
+        continue-on-error: true
         run: CORPTRACE_RUN_EXTERNAL_SOURCE_QA=1 npm run test:live --workspace @corptrace/api
         env:
           CORPTRACE_SEC_USER_AGENT: "CorpTrace live source QA/0.1 (corptrace@protonmail.com)"
