@@ -67,5 +67,5 @@ export function extractItemSection(text, patterns) {
     }
   }
   const section = lines.slice(heading.line, endLine).join("\n").trim();
-  return section.slice(0, 14000) || null;
+  return section.slice(0, 80000) || null;
 }
