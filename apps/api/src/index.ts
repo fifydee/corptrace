@@ -44,8 +44,8 @@ async function fetchSecResource(
       headers: {
         "User-Agent": userAgent,
         Accept: "application/json",
-        signal: AbortSignal.timeout(15000),
       },
+      signal: AbortSignal.timeout(15000),
     });
   } catch {
     return json(
