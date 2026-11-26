@@ -128,6 +128,8 @@ try {
   {
     const page = await browser.newPage({ viewport: { width: 1280, height: 900 } });
     await page.goto(base, { waitUntil: "domcontentloaded" });
+    // The app is client-rendered; wait for React to mount the skip link before testing keyboard order.
+    await page.locator(".skip-link").waitFor({ state: "attached" });
     await page.keyboard.press("Tab");
     const firstFocused = await page.evaluate(() => ({
       text: document.activeElement?.textContent?.trim(),
