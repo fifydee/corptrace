@@ -1,4 +1,4 @@
-import { findOfficialCompanySources } from "./official-company-sources";
+import { findOfficialCompanySources, extractBlocks, extractFacts } from "./official-company-sources";
 import { cleanFilingText, findSectionHeading, extractItemSection } from "./filing-parser.mjs";
 
 export interface Env {
@@ -435,10 +435,38 @@ async function getCompanyResearch(cik: string, userAgent: string, selectedTopics
     };
   });
   const officialSources = await officialSourcesPromise;
+  // Always use the identified SEC annual filing as a profile evidence source too.
+  // This provides a reliable fallback when external search engines or publishers block retrieval.
+  const filingEvidence = extractBlocks(html);
+  const filingSource = {
+    title: `${companyName} ${form} filed ${filedAt}`,
+    url: documentUrl,
+    domain: "sec.gov",
+    sourceType: "regulator" as const,
+    retrievedAt: new Date().toISOString(),
+    evidence: filingEvidence,
+  };
+  const combinedSources = [...(officialSources.sources ?? []), ...(filingEvidence.length ? [filingSource] : [])];
+  const combinedFacts = extractFacts(combinedSources);
+  const profileFact = (key: string) => combinedFacts.find(fact => fact.key === key)?.value;
+  const profileOverview = [
+    profileFact("business"),
+    profileFact("founded") ? `Founded in ${profileFact("founded")}` : null,
+    profileFact("headquarters") ? `Headquartered in ${profileFact("headquarters")}` : null,
+    profileFact("countries") ? `Operates in ${profileFact("countries")} countries` : null,
+    profileFact("employees") ? `Reports ${profileFact("employees")} employees` : null,
+  ].filter(Boolean).join(". ");
+  const enrichedOfficialSources = {
+    ...officialSources,
+    sources: combinedSources.slice(0, 16),
+    facts: combinedFacts,
+    overview: profileOverview ? `${profileOverview.replace(/[.]?$/, ".")}` : officialSources.overview,
+    notice: `${officialSources.notice} The identified SEC annual filing is also searched directly as a regulator-hosted fallback source.`,
+  };
   return json({
     source: "SEC EDGAR annual filing and official company website search",
     companyName,
-    officialSources,
+    officialSources: enrichedOfficialSources,
     cik,
     form,
     filedAt,
