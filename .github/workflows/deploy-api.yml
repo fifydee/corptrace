@@ -24,6 +24,8 @@ jobs:
         run: |
           npm run typecheck --workspace @corptrace/api
           npm exec --workspace @corptrace/api -- wrangler deploy --dry-run --outdir /tmp/corptrace-worker --config apps/api/wrangler.toml
+      - name: Require production branch
+        run: test "$GITHUB_REF" = "refs/heads/main" || { echo "::error::Production deployments must be run from main after the deployment PR is merged."; exit 1; }
       - name: Check Cloudflare credentials
         shell: bash
         run: |
