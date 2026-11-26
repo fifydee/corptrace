@@ -257,31 +257,87 @@ const filingTopics = [
   { key: "controls", title: "Controls and procedures", patterns: [/ITEM\s+9A[.\s]+CONTROLS/i] },
 ];
 function cleanFilingText(html: string): string {
+  // Preserve structural boundaries before removing markup. SEC filings frequently
+  // place headings and table cells in separate block elements.
   return html
-    .replace(/<script[\s\S]*?<\/script>/gi, " ")
-    .replace(/<style[\s\S]*?<\/style>/gi, " ")
-    .replace(/<[^>]+>/g, " ")
-    .replace(/&nbsp;|&#160;/gi, " ")
+    .replace(/<script\b[\s\S]*?<\/script\s*>/gi, "\n")
+    .replace(/<style\b[\s\S]*?<\/style\s*>/gi, "\n")
+    .replace(/<!--[\s\S]*?-->/g, "\n")
+    .replace(/<(?:br|hr)\b[^>]*>/gi, "\n")
+    .replace(/<\/(?:p|div|section|article|header|footer|h[1-6]|li|tr|table|ul|ol|blockquote|pre)\s*>/gi, "\n")
+    .replace(/<\/(?:td|th)\s*>/gi, " | ")
+    .replace(/<(?:p|div|section|article|header|footer|h[1-6]|li|tr|table|ul|ol|blockquote|pre)\b[^>]*>/gi, "\n")
+    .replace(/<(?:td|th)\b[^>]*>/gi, " ")
+    .replace(/<[^>]*>/g, " ")
+    .replace(/&nbsp;|&#160;|&#xA0;/gi, " ")
     .replace(/&amp;/gi, "&")
-    .replace(/&quot;/gi, '"')
+    .replace(/&quot;|&#34;/gi, '"')
     .replace(/&#39;|&apos;/gi, "'")
     .replace(/&lt;/gi, "<")
     .replace(/&gt;/gi, ">")
-    .replace(/\s+/g, " ")
+    .replace(/&#(\d+);/g, (_match, code: string) => String.fromCharCode(Number(code)))
+    .replace(/&#x([0-9a-f]+);/gi, (_match, code: string) => String.fromCharCode(parseInt(code, 16)))
+    .split(/\r?\n/)
+    .map(line => line.replace(/[ \t\f\v]+/g, " ").replace(/\s+\|\s+/g, " | ").trim())
+    .filter(Boolean)
+    .join("\n")
+    .replace(/\n{3,}/g, "\n\n")
     .trim();
 }
-function extractItemSection(text: string, patterns: RegExp[]): string | null {
-  let start = -1;
-  for (const pattern of patterns) {
-    const match = pattern.exec(text);
-    if (match && (start < 0 || match.index < start)) start = match.index;
+
+type SectionHeading = { index: number; line: number; heading: string };
+
+function findSectionHeading(text: string, patterns: RegExp[]): SectionHeading | null {
+  const lines = text.split("\n");
+  const candidates: SectionHeading[] = [];
+  let offset = 0;
+  for (let lineNumber = 0; lineNumber < lines.length; lineNumber++) {
+    const line = lines[lineNumber].trim();
+    if (line.length > 240) {
+      offset += lines[lineNumber].length + 1;
+      continue;
+    }
+    if (patterns.some(pattern => {
+      pattern.lastIndex = 0;
+      return pattern.test(line);
+    })) {
+      candidates.push({ index: offset, line: lineNumber, heading: line });
+    }
+    offset += lines[lineNumber].length + 1;
   }
-  if (start < 0) return null;
-  const tail = text.slice(start);
-  const nextItem = /\bITEM\s+(?:1B|1C|2|3|4|5|6|7|7A|7B|8|9|9A|9B|9C|10|11|12|13|14|15)[.\s]+/gi;
-  nextItem.lastIndex = Math.max(1, tail.search(/\bITEM\s+/i) + 5);
-  const next = nextItem.exec(tail);
-  const section = (next ? tail.slice(0, next.index) : tail).trim();
+
+  if (!candidates.length) return null;
+
+  // Contents pages tend to list many Item headings close together. Prefer a
+  // heading with substantive body text before the next Item heading.
+  const itemLine = /^\s*ITEM\s+(?:1A|1B|1C|2|3|4|5|6|7A|7B|7|8|9A|9B|9C|9|10|11|12|13|14|15)\b/i;
+  const scored = candidates.map(candidate => {
+    const following = lines.slice(candidate.line + 1, candidate.line + 18);
+    const nextItem = following.findIndex(line => itemLine.test(line));
+    const bodyLines = (nextItem < 0 ? following : following.slice(0, nextItem))
+      .filter(line => line.trim().length > 45);
+    const score = bodyLines.length + (candidate.heading.length < 180 ? 1 : 0);
+    return { candidate, score };
+  });
+  scored.sort((a, b) => b.score - a.score || a.candidate.index - b.candidate.index);
+  const best = scored[0];
+  if (!best || best.score < 2) return null;
+  return best.candidate;
+}
+
+function extractItemSection(text: string, patterns: RegExp[]): string | null {
+  const heading = findSectionHeading(text, patterns);
+  if (!heading) return null;
+  const lines = text.split("\n");
+  const itemLine = /^\s*ITEM\s+(?:1A|1B|1C|2|3|4|5|6|7A|7B|7|8|9A|9B|9C|9|10|11|12|13|14|15)\b/i;
+  let endLine = lines.length;
+  for (let i = heading.line + 1; i < lines.length; i++) {
+    if (itemLine.test(lines[i]) && lines[i].trim().length < 180) {
+      endLine = i;
+      break;
+    }
+  }
+  const section = lines.slice(heading.line, endLine).join("\n").trim();
   return section.slice(0, 14000) || null;
 }
 const researchTopicSectionMap: Record<string, string[]> = {
@@ -362,9 +418,20 @@ async function getCompanyResearch(cik: string, userAgent: string, selectedTopics
   const html = await documentResponse.text();
   const text = cleanFilingText(html);
   const sections = filingTopics.map(topic => {
-    const content = extractItemSection(text, topic.patterns);
-    return { key: topic.key, title: topic.title, content, dataStatus: content ? "candidate" : "unavailable",
-      note: content ? "Extracted from the identified annual filing section. Review the cited filing context before treating individual statements as verified facts." : "A matching section heading was not detected in this filing." };
+    const heading = findSectionHeading(text, topic.patterns);
+    const content = heading ? extractItemSection(text, topic.patterns) : null;
+    return {
+      key: topic.key,
+      title: topic.title,
+      item: topic.key === "business" ? "1" : topic.key === "risk" ? "1A" : topic.key === "legal" ? "3" : topic.key === "management" ? "7" : "9A",
+      content,
+      source: { documentUrl, form, filedAt, reportDate, accessionNumber },
+      extraction: { method: "line_preserving_heading_match", headingMatched: Boolean(heading), headingText: heading?.heading ?? null, confidence: content ? "candidate" : "unavailable" },
+      dataStatus: content ? "candidate" : "unavailable",
+      note: content
+        ? "Candidate passage extracted from the identified annual filing. Heading matching is heuristic; verify the passage against the linked filing before relying on individual statements."
+        : "No sufficiently supported section heading was detected. This does not establish that the filing lacks the information."
+    };
   });
   return json({
     source: "SEC EDGAR annual filing",
@@ -377,7 +444,7 @@ async function getCompanyResearch(cik: string, userAgent: string, selectedTopics
     retrievedAt: new Date().toISOString(),
     status: "filing_sections_extracted",
     sections,
-    notice: "Section extraction is an initial text-based pass. It preserves the source filing link but does not yet verify individual statements, tables, or product-level profitability."
+    notice: "Section extraction preserves paragraph and table-cell boundaries and uses heuristic heading selection to reduce table-of-contents matches. Extracted passages remain candidates: individual statements, tables, and product-level profitability are not independently verified."
   });
 }
 
