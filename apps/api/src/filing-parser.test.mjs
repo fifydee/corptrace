@@ -37,8 +37,8 @@ test("recognises SEC Item headings separated by em dashes", () => {
     "Its operations include research, manufacturing, distribution and customer support activities.",
     "ITEM 1A — RISK FACTORS",
     "This risk disclosure must not be included in the business section."
-  ].join("\\n");
-  const patterns = [/ITEM\\s+1[-.\\s:—–]+BUSINESS/i];
+  ].join("\n");
+  const patterns = [/ITEM\s+1[-.\s:—–]+BUSINESS/i];
   const heading = findSectionHeading(text, patterns);
   const section = extractItemSection(text, patterns);
   assert.equal(heading?.line, 0);
