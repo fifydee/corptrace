@@ -215,6 +215,7 @@ async function getCandidateMetrics(cik: string, userAgent: string): Promise<Resp
   try {
     upstream = await fetch(endpoint, {
       headers: { "User-Agent": userAgent, Accept: "application/json" },
+      signal: AbortSignal.timeout(15000),
     });
   } catch {
     return json({ error: "The SEC data service could not be reached.", sourceUrl: endpoint }, 502);
@@ -406,7 +407,7 @@ async function getCompanyResearch(cik: string, userAgent: string, selectedTopics
   const submissionsUrl = `https://data.sec.gov/submissions/CIK${cik}.json`;
   let submissionsResponse: Response;
   try {
-    submissionsResponse = await fetch(submissionsUrl, { headers: { "User-Agent": userAgent, Accept: "application/json", signal: AbortSignal.timeout(15000) } });
+    submissionsResponse = await fetch(submissionsUrl, { headers: { "User-Agent": userAgent, Accept: "application/json" }, signal: AbortSignal.timeout(15000) });
   } catch {
     return json({ error: "Could not retrieve SEC filing submissions.", sourceUrl: submissionsUrl }, 502);
   }
@@ -433,7 +434,7 @@ async function getCompanyResearch(cik: string, userAgent: string, selectedTopics
   const documentUrl = `https://www.sec.gov/Archives/edgar/data/${cikPath}/${accession}/${primaryDocument}`;
   let documentResponse: Response;
   try {
-    documentResponse = await fetch(documentUrl, { headers: { "User-Agent": userAgent, Accept: "text/html", signal: AbortSignal.timeout(20000) } });
+    documentResponse = await fetch(documentUrl, { headers: { "User-Agent": userAgent, Accept: "text/html" }, signal: AbortSignal.timeout(20000) });
   } catch {
     return json({ error: "Could not retrieve the annual filing document.", sourceUrl: documentUrl }, 502);
   }
