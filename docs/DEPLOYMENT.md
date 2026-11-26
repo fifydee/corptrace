@@ -50,7 +50,7 @@ The test checks the served React app shell and entry module, the frontend-to-Wor
 
 The local E2E CI job also installs pinned Playwright 1.56.1 and Chromium, then runs `apps/api/scripts/browser-e2e.mjs` against the locally served frontend and Worker.
 
-The browser suite covers the visible company search and selection journey, selecting a research topic, triggering research, the loading indicator, rendering source-linked findings, and communicating a research API failure. SEC lookup, submissions and metrics requests still go through the local Worker to live SEC endpoints. The narrative research response is deliberately stubbed in the browser test so UI behavior is deterministic and does not depend on third-party search-engine availability.
+The Chromium suite covers company search and selection, topic selection, research submission, loading and error announcements, and source-linked findings. It also checks a 390px mobile viewport for horizontal overflow, verifies that the mobile navigation exposes and updates its expanded state, and exercises the skip-to-main-content link and visible keyboard focus. SEC lookup, submissions and metrics requests still go through the local Worker to live SEC endpoints. The narrative research response is deliberately stubbed in the browser test so UI behavior is deterministic and does not depend on third-party search-engine availability.
 
 Run locally after installing Playwright and Chromium and starting the local Worker and Vite frontend:
 
@@ -58,7 +58,7 @@ Run locally after installing Playwright and Chromium and starting the local Work
 node apps/api/scripts/browser-e2e.mjs
 ```
 
-This is a desktop Chromium smoke suite. It does not yet replace cross-browser, mobile viewport, keyboard-only/accessibility, or production-deployed testing.
+This is still a Chromium smoke suite, not a full WCAG audit or cross-browser certification. It does not test screen readers with assistive technology, exhaustive color-contrast criteria, every interactive route, or the deployed production Worker. Keep manual accessibility review and production validation on the launch checklist.
 
 ## External company-source discovery
 
