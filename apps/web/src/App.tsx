@@ -109,7 +109,8 @@ function App() {
     if (!company) return;
     setResearchLoading(true); setResearchError("");
     try {
-      if (picked.length === 0) { setResearchError("Select at least one research topic first."); return; }\n      const response = await fetch(apiUrl(`/sec/company/${company.cik}/research?topics=${encodeURIComponent(picked.join("|"))}`));
+      if (picked.length === 0) { setResearchError("Select at least one research topic first."); return; }
+      const response = await fetch(apiUrl(`/sec/company/${company.cik}/research?topics=${encodeURIComponent(picked.join("|"))}`));
       const body = await response.json();
       if (!response.ok) throw new Error(body.error ?? "Could not update the selected research.");
       setNarrative(body);
