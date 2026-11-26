@@ -507,7 +507,7 @@ async function getCompanyResearch(cik: string, userAgent: string, selectedTopics
     retrievedAt: new Date().toISOString(),
     evidence: filingEvidence,
   };
-  const combinedSources = [...(officialSources.sources ?? []), ...(filingEvidence.length ? [filingSource] : [])];
+  const combinedSources = [...(filingEvidence.length ? [filingSource] : []), ...(officialSources.sources ?? [])];
   const combinedFacts = extractFacts(combinedSources);
   const profileFact = (key: string) => combinedFacts.find(fact => fact.key === key)?.value;
   const profileOverview = [
