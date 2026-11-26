@@ -1,3 +1,5 @@
+import { cleanFilingText, findSectionHeading, extractItemSection } from "./filing-parser.mjs";
+
 export interface Env {
   APP_ENV?: string;
   SEC_USER_AGENT?: string;
@@ -256,35 +258,52 @@ const filingTopics = [
   { key: "management", title: "Management discussion and financial performance", patterns: [/ITEM\s+7[.\s]+MANAGEMENT[’']?S?\s+DISCUSSION/i, /ITEM\s+7[.\s]+MANAGEMENT’S DISCUSSION/i] },
   { key: "controls", title: "Controls and procedures", patterns: [/ITEM\s+9A[.\s]+CONTROLS/i] },
 ];
-function cleanFilingText(html: string): string {
-  return html
-    .replace(/<script[\s\S]*?<\/script>/gi, " ")
-    .replace(/<style[\s\S]*?<\/style>/gi, " ")
-    .replace(/<[^>]+>/g, " ")
-    .replace(/&nbsp;|&#160;/gi, " ")
-    .replace(/&amp;/gi, "&")
-    .replace(/&quot;/gi, '"')
-    .replace(/&#39;|&apos;/gi, "'")
-    .replace(/&lt;/gi, "<")
-    .replace(/&gt;/gi, ">")
-    .replace(/\s+/g, " ")
-    .trim();
+const researchTopicSectionMap: Record<string, string[]> = {
+  "Company overview and history": ["business"],
+  "Headquarters and registered locations": ["business"],
+  "Operating regions and countries": ["business"],
+  "Offices and facilities": ["business"],
+  "Products and services": ["business"],
+  "Business segments and revenue mix": ["business", "management"],
+  "Financial summary": ["management"],
+  "Revenue and income sources": ["management"],
+  "Expenses and operating costs": ["management"],
+  "Profitability and margins": ["management"],
+  "Debt and financial position": ["management"],
+  "Dividends and share buybacks": ["management"],
+  "Employee count and workforce": ["business", "management"],
+  "Employee geography and nationalities": ["business"],
+  "Leadership and compensation": ["management"],
+  "Product and service performance": ["business", "management"],
+  "Most profitable products or services": ["business", "management"],
+  "Investment, R&D and AI": ["business", "management"],
+  "Acquisitions and mergers": ["business", "legal"],
+  "SWOT analysis": ["business", "risk", "management"],
+  "Risk factors": ["risk"],
+  "Legal cases and disputes": ["legal"],
+  "Regulatory matters and controversies": ["risk", "legal"],
+  "Recent company news": [],
+};
+
+function buildTopicCoverage(selectedTopics: string[], sections: Array<{ key: string; title: string; dataStatus: string }>) {
+  return selectedTopics.map(topic => {
+    const relevantKeys = researchTopicSectionMap[topic] ?? [];
+    const evidenceSections = sections
+      .filter(section => relevantKeys.includes(section.key))
+      .map(section => ({ key: section.key, title: section.title, dataStatus: section.dataStatus }));
+    const hasCandidate = evidenceSections.some(section => section.dataStatus === "candidate");
+    return {
+      topic,
+      status: hasCandidate ? "candidate" : "unavailable",
+      evidenceSections,
+      limitation: relevantKeys.length === 0
+        ? "This topic requires a separate current-news or external-source integration; the annual filing extractor does not cover it."
+        : "These are broad annual-filing sections that may contain relevant evidence. They are not a topic-specific answer, and absence from these sections does not prove the company has not disclosed the information elsewhere.",
+    };
+  });
 }
-function extractItemSection(text: string, patterns: RegExp[]): string | null {
-  let start = -1;
-  for (const pattern of patterns) {
-    const match = pattern.exec(text);
-    if (match && (start < 0 || match.index < start)) start = match.index;
-  }
-  if (start < 0) return null;
-  const tail = text.slice(start);
-  const nextItem = /\bITEM\s+(?:1B|1C|2|3|4|5|6|7|7A|7B|8|9|9A|9B|9C|10|11|12|13|14|15)[.\s]+/gi;
-  nextItem.lastIndex = Math.max(1, tail.search(/\bITEM\s+/i) + 5);
-  const next = nextItem.exec(tail);
-  const section = (next ? tail.slice(0, next.index) : tail).trim();
-  return section.slice(0, 14000) || null;
-}
-async function getCompanyResearch(cik: string, userAgent: string): Promise<Response> {
+
+async function getCompanyResearch(cik: string, userAgent: string, selectedTopics: string[] = []): Promise<Response> {
   const submissionsUrl = `https://data.sec.gov/submissions/CIK${cik}.json`;
   let submissionsResponse: Response;
   try {
@@ -317,9 +336,20 @@ async function getCompanyResearch(cik: string, userAgent: string): Promise<Respo
   const html = await documentResponse.text();
   const text = cleanFilingText(html);
   const sections = filingTopics.map(topic => {
-    const content = extractItemSection(text, topic.patterns);
-    return { key: topic.key, title: topic.title, content, dataStatus: content ? "candidate" : "unavailable",
-      note: content ? "Extracted from the identified annual filing section. Review the cited filing context before treating individual statements as verified facts." : "A matching section heading was not detected in this filing." };
+    const heading = findSectionHeading(text, topic.patterns);
+    const content = heading ? extractItemSection(text, topic.patterns) : null;
+    return {
+      key: topic.key,
+      title: topic.title,
+      item: topic.key === "business" ? "1" : topic.key === "risk" ? "1A" : topic.key === "legal" ? "3" : topic.key === "management" ? "7" : "9A",
+      content,
+      source: { documentUrl, form, filedAt, reportDate, accessionNumber },
+      extraction: { method: "line_preserving_heading_match", headingMatched: Boolean(heading), headingText: heading?.heading ?? null, confidence: content ? "candidate" : "unavailable" },
+      dataStatus: content ? "candidate" : "unavailable",
+      note: content
+        ? "Candidate passage extracted from the identified annual filing. Heading matching is heuristic; verify the passage against the linked filing before relying on individual statements."
+        : "No sufficiently supported section heading was detected. This does not establish that the filing lacks the information."
+    };
   });
   return json({
     source: "SEC EDGAR annual filing",
@@ -332,7 +362,7 @@ async function getCompanyResearch(cik: string, userAgent: string): Promise<Respo
     retrievedAt: new Date().toISOString(),
     status: "filing_sections_extracted",
     sections,
-    notice: "Section extraction is an initial text-based pass. It preserves the source filing link but does not yet verify individual statements, tables, or product-level profitability."
+    notice: "Section extraction preserves paragraph and table-cell boundaries and uses heuristic heading selection to reduce table-of-contents matches. Extracted passages remain candidates: individual statements, tables, and product-level profitability are not independently verified."
   });
 }
 
@@ -407,7 +437,8 @@ export default {
       const cik = normaliseCik(researchMatch[1]);
       if (!cik) return json({ error: "Invalid CIK. Supply between 1 and 10 digits." }, 400);
       if (!env.SEC_USER_AGENT || !/\S+\s+\S+/.test(env.SEC_USER_AGENT)) return json({ error: "SEC_USER_AGENT is not configured." }, 503);
-      return getCompanyResearch(cik, env.SEC_USER_AGENT);
+      const selectedTopics = (url.searchParams.get("topics") ?? "").split("|").map(topic => topic.trim()).filter(Boolean).slice(0, 30);
+      return getCompanyResearch(cik, env.SEC_USER_AGENT, selectedTopics);
     }
 
     const metricsMatch = url.pathname.match(

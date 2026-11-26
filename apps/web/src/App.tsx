@@ -29,6 +29,7 @@ type NarrativeResearch = {
   source: string; form: string; filedAt: string; reportDate: string;
   documentUrl: string; retrievedAt: string; notice: string;
   sections: { key: string; title: string; content: string | null; dataStatus: string; note: string }[];
+  topicCoverage?: { topic: string; status: string; evidenceSections: { key: string; title: string; dataStatus: string }[]; limitation: string }[];
 };
 
 const API_BASE = (import.meta.env.VITE_API_BASE_URL ?? "").replace(/\/$/, "");
@@ -78,7 +79,7 @@ function App() {
       const [metricResponse, filingResponse, narrativeResponse] = await Promise.all([
         fetch(apiUrl(`/sec/company/${item.cik}/metrics`)),
         fetch(apiUrl(`/sec/company/${item.cik}/submissions`)),
-        fetch(apiUrl(`/sec/company/${item.cik}/research`)),
+        fetch(apiUrl(`/sec/company/${item.cik}/research?topics=${encodeURIComponent(picked.join("|"))}`)),
       ]);
       const metricBody = await metricResponse.json();
       const filingBody = await filingResponse.json();
@@ -141,7 +142,7 @@ function App() {
           <h2>SEC-reported financial metrics</h2><p>Each available figure below is traceable to an identified SEC filing and is verified as reported by the company. Comparability across companies and accounting treatments is assessed separately.</p>
           <div className="metric-grid">{metrics.metrics.map((m,i)=><article key={m?.metric ?? i} className="metric-card"><small>{m?.label ?? "Metric unavailable"}</small>{m ? <><strong>{money(m.value,m.unit)}</strong><span>{m.periodStart ? `${m.periodStart} to ${m.periodEnd}` : `As at ${m.periodEnd}`}</span><span>{m.form} · Filed {m.filedAt}</span><a href={m.filingUrl} target="_blank" rel="noreferrer">View official SEC filing <ArrowUpRight size={13}/></a><em className="verified-label"><ShieldCheck size={13}/> Verified · SEC-reported</em><small>{m.verificationBasis}</small></> : <><strong>Unavailable</strong><span>No matching standard US-GAAP annual fact found.</span></>}</article>)}</div>
         </>}
-        {narrative && <section className="filing-research"><div className="filing-research-head"><div><label>ANNUAL REPORT EXPLORER</label><h2>What the filing says about the business</h2><p>{narrative.form} · Filed {narrative.filedAt} · Reporting date {narrative.reportDate || "not supplied"}</p></div><a href={narrative.documentUrl} target="_blank" rel="noreferrer">Open complete filing <ArrowUpRight size={13}/></a></div><div className="extraction-note"><ShieldCheck size={16}/>{narrative.notice}</div><div className="filing-sections">{narrative.sections.filter(section => {
+        {narrative && <section className="filing-research"><div className="filing-research-head"><div><label>ANNUAL REPORT EXPLORER</label><h2>What the filing says about the business</h2><p>{narrative.form} · Filed {narrative.filedAt} · Reporting date {narrative.reportDate || "not supplied"}</p></div><a href={narrative.documentUrl} target="_blank" rel="noreferrer">Open complete filing <ArrowUpRight size={13}/></a></div><div className="extraction-note"><ShieldCheck size={16}/>{narrative.notice}</div>{narrative.topicCoverage && narrative.topicCoverage.length > 0 && <div className="selected-topics">{narrative.topicCoverage.map(item=><div key={item.topic}><span>{item.topic}</span><small>{item.status === "candidate" ? `Potential evidence in: ${item.evidenceSections.map(section=>section.title).join(", ")}` : "No matching evidence section detected in this filing"}. {item.limitation}</small></div>)}</div>}<div className="filing-sections">{narrative.sections.filter(section => {
           const selection = picked.join(" ").toLowerCase();
           if (section.key === "risk") return selection.includes("risk");
           if (section.key === "legal") return selection.includes("legal") || selection.includes("regulatory");
