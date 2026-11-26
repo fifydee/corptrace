@@ -49,7 +49,8 @@ async function searchWeb(query: string): Promise<Array<{ title: string; url: str
     headers: {
       "User-Agent": "Mozilla/5.0 (compatible; CorpTraceResearch/2.0)",
       "Accept": "text/html"
-    }
+    },
+    signal: AbortSignal.timeout(10000)
   });
   if (!response.ok) return [];
 
