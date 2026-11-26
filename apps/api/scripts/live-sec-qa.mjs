@@ -15,7 +15,8 @@ const compilerOptions = { module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.
 const transpile = (source) => ts.transpileModule(source, { compilerOptions }).outputText;
 const officialHelpersEnd = officialSource.indexOf("export async function findOfficialCompanySources(");
 assert.notEqual(officialHelpersEnd, -1, "official source discovery function must be identifiable");
-const officialHelpersSource = officialSource.slice(0, officialHelpersEnd);
+const runExternalSourceQa = process.env.CORPTRACE_RUN_EXTERNAL_SOURCE_QA === "1";
+const officialHelpersSource = runExternalSourceQa ? officialSource : officialSource.slice(0, officialHelpersEnd);
 const stripExports = (source) => source.replace(/^export\s+/gm, "");
 const indexWithoutImports = indexSource.replace(/^import\s+.*?;\s*$/gm, "");
 assert.ok(!/^import\s/m.test(indexWithoutImports), "QA bundle must not retain unresolved imports");
@@ -36,7 +37,7 @@ const externalSearchStub = [
 const bundle = [
   stripExports(transpile(officialHelpersSource)),
   stripExports(parserSource),
-  externalSearchStub,
+  ...(runExternalSourceQa ? [] : [externalSearchStub]),
   transpile(indexWithoutImports),
 ].join("\n");
 
@@ -89,11 +90,11 @@ const companies = [
 
 const report = {
   generatedAt: new Date().toISOString(),
-  testScope: "Live SEC submissions and annual filing retrieval; actual CorpTrace Worker route, filing parser, topic extraction and source attribution. External web discovery intentionally stubbed.",
+  testScope: runExternalSourceQa ? "Live SEC submissions, annual filing retrieval, actual CorpTrace Worker route, and live external company-source search/page retrieval." : "Live SEC submissions and annual filing retrieval; actual CorpTrace Worker route, filing parser, topic extraction and source attribution. External web discovery intentionally stubbed.",
   userAgent,
   companies: [],
 };
-const outputPath = resolve(process.cwd(), "live-sec-qa-report.json");
+const outputPath = resolve(process.cwd(), runExternalSourceQa ? "live-company-source-qa-report.json" : "live-sec-qa-report.json");
 const failures = [];
 
 for (const company of companies) {
@@ -146,6 +147,32 @@ for (const company of companies) {
       }
       const propertiesSection = body.sections?.find((section) => section.key === "properties");
       if (!propertiesSection?.content) errors.push("Item 2 / Properties section was not extracted");
+      if (runExternalSourceQa) {
+        const discovered = body.officialSources;
+        if (!discovered || discovered.sourceSearch === "skipped_in_live_sec_qa") {
+          errors.push("External source discovery was not executed");
+        } else {
+          if (!discovered.sources?.length) errors.push("No accessible external sources were retrieved");
+          if (!discovered.sources?.some(source => source.sourceType === "company")) {
+            errors.push("No official company-domain source was retrieved");
+          }
+          if (!discovered.sources?.some(source => ["regulator", "business_publication"].includes(source.sourceType))) {
+            errors.push("No regulator or established business-publication source was retrieved");
+          }
+          if (!discovered.facts?.length) errors.push("No source-attributed company profile facts were extracted");
+          for (const source of discovered.sources ?? []) {
+            if (!/^https:\/\//i.test(source.url)) errors.push("Non-HTTPS external source returned: " + source.url);
+            if (!source.evidence?.length) errors.push("External source has no extracted evidence: " + source.url);
+          }
+          for (const fact of discovered.facts ?? []) {
+            if (!discovered.sources.some(source => source.url === fact.sourceUrl)) {
+              errors.push("External fact has no matching source: " + fact.key);
+            }
+            if (!fact.evidence || fact.evidence.length < 30) errors.push("External fact evidence is missing: " + fact.key);
+          }
+        }
+      }
+
       const workforceFinding = body.findings?.find((finding) => finding.topic === "Employee count and workforce");
       if (!workforceFinding) {
         errors.push("Workforce topic result is missing");
@@ -179,6 +206,10 @@ for (const company of companies) {
       sectionCharactersReturned: body.sections?.find((section) => section.key === "business")?.content?.length ?? 0,
       workforceStatus: workforceFinding?.status ?? "missing",
       workforceEvidence: workforceFinding?.evidence?.map((item) => item.excerpt) ?? [],
+      externalSourceCount: body.officialSources?.sources?.length ?? 0,
+      externalSources: (body.officialSources?.sources ?? []).map(source => ({ title: source.title, url: source.url, domain: source.domain, sourceType: source.sourceType, evidence: source.evidence })),
+      externalSourceCount: body.officialSources?.sources?.length ?? 0,
+      externalSources: (body.officialSources?.sources ?? []).map(source => ({ title: source.title, url: source.url, domain: source.domain, sourceType: source.sourceType, evidence: source.evidence })),
       extractedProfileFacts: (body.officialSources?.facts ?? []).map((fact) => ({
         key: fact.key,
         value: fact.value,
@@ -223,7 +254,7 @@ if (process.env.GITHUB_STEP_SUMMARY) {
     "",
     "This run exercised the CorpTrace Worker research route against live SEC submissions and filing documents. External company-web discovery was intentionally stubbed; SEC retrieval, filing parsing, topic matching and source attribution were exercised.",
     "",
-    "Full excerpts and topic results are available in the live-sec-qa-report.json workflow artifact.",
+    "Full excerpts and topic results are available in the " + (runExternalSourceQa ? "live-company-source-qa-report.json" : "live-sec-qa-report.json") + " workflow artifact.",
     "",
     failures.length ? "### Findings requiring attention\n\n" + failures.map((failure) => "- " + failure).join("\n") : "All live SEC checks passed.",
   ].join("\n");
