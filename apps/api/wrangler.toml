@@ -5,3 +5,8 @@ compatibility_date = "2026-11-24"
 [vars]
 APP_ENV = "development"
 SEC_USER_AGENT = "CorpTrace/0.1 (corptrace@protonmail.com)"
+
+[[ratelimits]]
+name = "API_RATE_LIMITER"
+namespace_id = "918273645"
+simple = { limit = 30, period = 60 }

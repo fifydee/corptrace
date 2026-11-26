@@ -5,6 +5,7 @@ on:
     branches: [main]
   pull_request:
     branches: [main]
+  workflow_dispatch:
 
 jobs:
   validate:
@@ -12,15 +13,146 @@ jobs:
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - name: Validate GitHub Actions workflow YAML
+        run: ruby -e 'require "yaml"; Dir.glob(".github/workflows/*.{yml,yaml}").each { |path| YAML.load_file(path, aliases: true); puts "Validated #{path}" }'
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 20
-      - name: Install dependencies
-        run: npm install
+          node-version: 22.12.0
+      - name: Install dependencies from lockfile
+        run: npm ci
+      - name: Audit dependencies for high-severity vulnerabilities
+        run: npm audit --audit-level=high
       - name: Test filing parser
         run: npm test --workspace @corptrace/api
       - name: Type-check API
         run: npm run typecheck --workspace @corptrace/api
+      - name: Validate Cloudflare Worker bundle and configuration
+        run: npm exec --workspace @corptrace/api -- wrangler deploy --dry-run --outdir /tmp/corptrace-worker
       - name: Build web app
         run: npm run build --workspace @corptrace/web
+
+  local-e2e:
+    needs: validate
+    # Playwright 1.56.1 supports Ubuntu 24.04; pin the runner image rather than following ubuntu-latest.
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22.12.0
+      - name: Install dependencies from lockfile
+        run: npm ci
+      - name: Install pinned Playwright browser test runner
+        run: npm install --no-save --package-lock=false playwright@1.56.1
+      - name: Install Chromium and system dependencies
+        run: npx playwright install --with-deps chromium
+      - name: Start local Cloudflare Worker
+        run: |
+          nohup npm run dev --workspace @corptrace/api -- --local --ip 127.0.0.1 --port 8787 > /tmp/corptrace-worker.log 2>&1 &
+          echo $! > /tmp/corptrace-worker.pid
+      - name: Wait for Worker health endpoint
+        run: |
+          for attempt in $(seq 1 45); do
+            if curl --silent --fail http://127.0.0.1:8787/health > /tmp/corptrace-health.json; then
+              cat /tmp/corptrace-health.json
+              exit 0
+            fi
+            sleep 2
+          done
+          cat /tmp/corptrace-worker.log
+          exit 1
+      - name: Start Vite frontend with Worker proxy
+        run: |
+          nohup npm run dev --workspace @corptrace/web -- --host 127.0.0.1 --port 4173 --strictPort > /tmp/corptrace-web.log 2>&1 &
+          echo $! > /tmp/corptrace-web.pid
+      - name: Wait for frontend
+        run: |
+          for attempt in $(seq 1 30); do
+            if curl --silent --fail http://127.0.0.1:4173/ > /tmp/corptrace-index.html; then
+              exit 0
+            fi
+            sleep 2
+          done
+          cat /tmp/corptrace-web.log
+          exit 1
+      - name: Test frontend-to-Worker SEC flow
+        run: npm run test:e2e --workspace @corptrace/api
+      - name: Test interactive company research journey in Chromium
+        run: node apps/api/scripts/browser-e2e.mjs
+      - name: Capture local server logs
+        if: always()
+        run: |
+          echo "### Worker log"
+          test ! -f /tmp/corptrace-worker.log || tail -n 250 /tmp/corptrace-worker.log
+          echo "### Frontend log"
+          test ! -f /tmp/corptrace-web.log || tail -n 150 /tmp/corptrace-web.log
+
+  live-company-source-qa:
+    needs: validate
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    permissions:
+      contents: read
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22.12.0
+      - name: Install dependencies from lockfile
+        run: npm ci
+      - name: Exercise live company-source discovery
+        # Search-engine and publisher availability is outside the app's control; retain failures as visible QA diagnostics without masking deterministic CI checks.
+        continue-on-error: true
+        run: CORPTRACE_RUN_EXTERNAL_SOURCE_QA=1 npm run test:live --workspace @corptrace/api
+        env:
+          CORPTRACE_SEC_USER_AGENT: "CorpTrace live source QA/0.1 (corptrace@protonmail.com)"
+      - name: Upload live company-source QA report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: live-company-source-qa-report
+          path: apps/api/live-company-source-qa-report.json
+          if-no-files-found: ignore
+
+  live-sec-qa:
+    needs: validate
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22.12.0
+      - name: Install dependencies from lockfile
+        run: npm ci
+      - name: Exercise CorpTrace against live SEC filings
+        run: npm run test:live --workspace @corptrace/api
+        env:
+          CORPTRACE_SEC_USER_AGENT: "CorpTrace live SEC QA/0.1 (corptrace@protonmail.com)"
+      - name: Upload live SEC QA report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: live-sec-qa-report
+          path: apps/api/live-sec-qa-report.json
+          if-no-files-found: ignore

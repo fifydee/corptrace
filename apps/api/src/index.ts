@@ -4,6 +4,9 @@ import { cleanFilingText, findSectionHeading, extractItemSection } from "./filin
 export interface Env {
   APP_ENV?: string;
   SEC_USER_AGENT?: string;
+  API_RATE_LIMITER: {
+    limit(options: { key: string; delta?: number }): Promise<{ success: boolean }>;
+  };
 }
 
 type SecResource = "lookup" | "submissions" | "facts";
@@ -45,6 +48,7 @@ async function fetchSecResource(
         "User-Agent": userAgent,
         Accept: "application/json",
       },
+      signal: AbortSignal.timeout(15000),
     });
   } catch {
     return json(
@@ -199,8 +203,8 @@ function selectAnnualCandidate(
     filedAt: selected.fact.filed,
     accessionNumber,
     filingUrl,
-    dataStatus: "verified",
-    verificationLevel: "source_verified",
+    dataStatus: "source_traceable",
+    verificationLevel: "source_traceable",
     verificationBasis:
       "This value is an SEC company-facts XBRL fact tied to the identified 10-K, 20-F or 40-F accession. The metric concept, unit, annual duration (where applicable), reporting date and filing metadata passed CorpTrace's source-traceability checks.",
     caveat:
@@ -214,6 +218,7 @@ async function getCandidateMetrics(cik: string, userAgent: string): Promise<Resp
   try {
     upstream = await fetch(endpoint, {
       headers: { "User-Agent": userAgent, Accept: "application/json" },
+      signal: AbortSignal.timeout(15000),
     });
   } catch {
     return json({ error: "The SEC data service could not be reached.", sourceUrl: endpoint }, 502);
@@ -234,10 +239,10 @@ async function getCandidateMetrics(cik: string, userAgent: string): Promise<Resp
     sourceUrl: endpoint,
     retrievedAt: new Date().toISOString(),
     reportingBasis: "Latest traceable annual SEC filing facts; 10-K, 20-F and 40-F forms",
-    status: "source_verified_data",
+    status: "source_traceable_data",
     metrics,
     notice:
-      "Available figures are verified as reported SEC filing facts when a standard US-GAAP concept, unit, annual period (where applicable), filing form, accession number and filing date are present. This source verification does not establish cross-company comparability or independent audit assurance.",
+      "Available figures are source-traceable SEC XBRL facts when a standard US-GAAP concept, unit, annual period (where applicable), filing form, accession number and filing date are present. These checks establish a trace to reported data; they do not independently validate metric selection, issuer-specific accounting context, restatements, cross-company comparability or audit assurance.",
   });
 }
 
@@ -254,17 +259,18 @@ type SubmissionPayload = {
   filings?: { recent?: FilingRecent };
 };
 const filingTopics = [
-  { key: "business", title: "Business overview, products and operating footprint", patterns: [/ITEM\s+1[.\s]+BUSINESS/i, /ITEM\s+1[.\s]+DESCRIPTION OF BUSINESS/i] },
-  { key: "risk", title: "Risk factors", patterns: [/ITEM\s+1A[.\s]+RISK FACTORS/i] },
-  { key: "legal", title: "Legal proceedings", patterns: [/ITEM\s+3[.\s]+LEGAL PROCEEDINGS/i] },
-  { key: "management", title: "Management discussion and financial performance", patterns: [/ITEM\s+7[.\s]+MANAGEMENT[’']?S?\s+DISCUSSION/i, /ITEM\s+7[.\s]+MANAGEMENT’S DISCUSSION/i] },
-  { key: "controls", title: "Controls and procedures", patterns: [/ITEM\s+9A[.\s]+CONTROLS/i] },
+  { key: "business", title: "Business overview, products and operating footprint", patterns: [/^\s*ITEM\s+1[-.\s:|—–]+BUSINESS/i, /^\s*ITEM\s+1[-.\s:|—–]+DESCRIPTION OF BUSINESS/i] },
+  { key: "properties", title: "Properties and principal locations", patterns: [/^\s*ITEM\s+2[-.\s:|—–]+PROPERTIES/i] },
+  { key: "risk", title: "Risk factors", patterns: [/^\s*ITEM\s+1A[-.\s:|—–]+RISK FACTORS/i] },
+  { key: "legal", title: "Legal proceedings", patterns: [/^\s*ITEM\s+3[-.\s:|—–]+LEGAL PROCEEDINGS/i] },
+  { key: "management", title: "Management discussion and financial performance", patterns: [/^\s*ITEM\s+7[-.\s:|—–]+MANAGEMENT[’']?S?\s+DISCUSSION/i, /^\s*ITEM\s+7[-.\s:|—–]+MANAGEMENT’S DISCUSSION/i] },
+  { key: "controls", title: "Controls and procedures", patterns: [/^\s*ITEM\s+9A[-.\s:|—–]+CONTROLS/i] },
 ];
 const researchTopicSectionMap: Record<string, string[]> = {
   "Company overview and history": ["business"],
-  "Headquarters and registered locations": ["business"],
+  "Headquarters and registered locations": ["business", "properties"],
   "Operating regions and countries": ["business"],
-  "Offices and facilities": ["business"],
+  "Offices and facilities": ["business", "properties"],
   "Products and services": ["business"],
   "Business segments and revenue mix": ["business", "management"],
   "Financial summary": ["management"],
@@ -277,7 +283,6 @@ const researchTopicSectionMap: Record<string, string[]> = {
   "Employee geography and nationalities": ["business"],
   "Workforce by country or region": ["business"],
   "Gender representation (where disclosed)": ["business"],
-  "Leadership and compensation": ["management"],
   "Leadership changes and compensation": ["management"],
   "Product and service performance": ["business", "management"],
   "Most profitable products or services": ["business", "management"],
@@ -320,17 +325,16 @@ type ResearchFinding = {
 };
 
 const topicEvidencePatterns: Record<string, RegExp[]> = {
-  "Company overview and history": [/founded|incorporated|established|company overview|our business/i],
-  "Headquarters and registered locations": [/headquartered|principal executive offices|principal office|registered office/i],
-  "Operating regions and countries": [/operate[s]? in|operations in|across .* countries|countries and regions|geographic( al)? areas/i],
+  "Company overview and history": [/\b(?:founded|incorporated|established)\b|\b(?:is|are)\s+(?:a|an)\s+[^.!?]{5,140}\b(?:company|provider|manufacturer|retailer|biopharmaceutical|pharmaceutical|technology)\b|\bwe\s+(?:design|develop|manufacture|sell|provide|offer|distribute)\b/i],
+  "Headquarters and registered locations": [/headquartered|headquarters|principal executive offices|principal offices|registered office/i],
+  "Operating regions and countries": [/\b(?:conduct(?:s|ed) business in|operate[s]? in|operate[s]? across|across)\s+(?:(?:more than|over|approximately)\s+)?[0-9,]+\s+countries\b|\b(?:our|the company’s|company’s)\s+(?:operations|business)\s+(?:are\s+)?(?:in|across)\s+(?:the\s+)?(?:U\.S\.|United States|Canada|Europe|Asia|Africa|Americas|EMEA|APAC|Latin America|Middle East)\b/i],
   "Offices and facilities": [/offices|facilities|manufacturing sites|distribution centers|data ?centers|stores|locations/i],
   "Products and services": [/products and services|our products|our services|product portfolio|service offerings/i],
   "Business segments and revenue mix": [/reportable segments|operating segments|net sales|revenue[s]? by segment|segment revenue/i],
-  "Employee count and workforce": [/\b[0-9][0-9,.]*\s*(?:employees|people|persons)\b|employed approximately|number of persons employed|full.time employees/i],
-  "Employee geography and nationalities": [/\b[0-9][0-9,.]*\s*(?:employees|people)\b.{0,100}\b(?:U\.S\.|United States|international|Europe|Asia|Africa|Americas|country|region)\b|employees? (?:in|located in)|workforce .* (?:country|region)|international employees|employees outside/i],
-  "Workforce by country or region": [/\b[0-9][0-9,.]*\s*(?:employees|people)\b.{0,100}\b(?:U\.S\.|United States|international|Europe|Asia|Africa|Americas|country|region)\b|employees? (?:in|located in)|workforce .* (?:country|region)|international employees|employees outside/i],
+  "Employee count and workforce": [/\b[0-9][0-9,.]*\s*(?:(?:million|thousand)\s+)?(?:employees|associates)\b|\bemployed\s+(?:approximately\s+|about\s+|over\s+|more than\s+)?[0-9][0-9,.]*\s*(?:(?:million|thousand)\s+)?people\b|number of persons employed|full.time employees/i],
+  "Employee geography and nationalities": [/\b[0-9][0-9,.]*\s*(?:(?:million|thousand)\s+)?(?:employees|associates)\b.{0,100}\b(?:U\.S\.|United States|international|Europe|Asia|Africa|Americas|country|region)(?=\W|$)|(?:employees?|associates) (?:in|located in)|workforce .* (?:country|region)|international employees|employees outside/i],
+  "Workforce by country or region": [/\b[0-9][0-9,.]*\s*(?:(?:million|thousand)\s+)?(?:employees|associates)\b.{0,100}\b(?:U\.S\.|United States|international|Europe|Asia|Africa|Americas|country|region)(?=\W|$)|(?:employees?|associates) (?:in|located in)|workforce .* (?:country|region)|international employees|employees outside/i],
   "Gender representation (where disclosed)": [/\b[0-9]+(?:\.[0-9]+)?%\s+(?:of\s+)?(?:employees|workforce|women|men)\b|women represent|female employees|gender representation|men and women/i],
-  "Leadership and compensation": [/executive officers|named executive officers|executive compensation|leadership team/i],
   "Leadership changes and compensation": [/appointed|resigned|retired|chief executive officer|executive compensation/i],
   "Product and service performance": [/product revenue|service revenue|net sales|segment results|product line/i],
   "Most profitable products or services": [/segment operating income|product profitability|gross profit by|operating profit by segment/i],
@@ -353,23 +357,55 @@ function buildResearchFindings(
 ): ResearchFinding[] {
   return selectedTopics.map(topic => {
     const keys = researchTopicSectionMap[topic] ?? [];
-    if (!keys.length) return {
-      topic, status: "not_searched", evidence: [],
-      explanation: "This topic is not covered by the annual filing search alone. A separate current-news or external-source search is required.",
-    };
+    if (!keys.length) {
+      return {
+        topic,
+        status: "not_searched",
+        evidence: [],
+        explanation: "This topic is not covered by the annual filing search alone. A separate current-news or external-source search is required.",
+      };
+    }
+
     const patterns = topicEvidencePatterns[topic] ?? [];
+    if (!patterns.length) {
+      return {
+        topic,
+        status: "not_searched",
+        evidence: [],
+        explanation: "No topic-specific evidence rule is configured yet. CorpTrace will not treat a broad filing section as an answer to this question.",
+      };
+    }
+
+    const mappedSections = sections.filter(section => keys.includes(section.key));
+    if (!mappedSections.some(section => section.content)) {
+      return {
+        topic,
+        status: "not_searched",
+        evidence: [],
+        explanation: "The relevant annual-filing section could not be reliably located or extracted, so this topic was not searched. This is not evidence that the disclosure is absent.",
+      };
+    }
+
     const evidence: ResearchFinding["evidence"] = [];
-    for (const section of sections.filter(item => keys.includes(item.key) && item.content)) {
-      const lines = (section.content ?? "").split(/(?<=[.!?])\s+|\n+/).map(line => line.trim()).filter(Boolean);
+    const relevantSections = mappedSections.filter(section => section.content);
+    for (const section of relevantSections) {
+      const content = section.content ?? "";
+      const lines = content
+        .split(/(?<=[.!?])\s+|\n+/)
+        .map(line => line.trim())
+        .filter(Boolean);
+
       for (const line of lines) {
-        if (patterns.some(pattern => pattern.test(line))) {
-          const excerpt = line.slice(0, 700);
-          if (!evidence.some(item => item.excerpt === excerpt)) evidence.push({ section: section.title, excerpt, documentUrl });
-          if (evidence.length >= 4) break;
+        if (!patterns.some(pattern => pattern.test(line))) continue;
+        const excerpt = line.slice(0, 700);
+        if (!evidence.some(item => item.excerpt === excerpt)) {
+          evidence.push({ section: section.title, excerpt, documentUrl });
         }
+        if (evidence.length >= 4) break;
       }
       if (evidence.length >= 4) break;
     }
+
     return {
       topic,
       status: evidence.length ? "disclosed_in_filing" : "not_found_in_filing",
@@ -381,21 +417,45 @@ function buildResearchFindings(
   });
 }
 
+function extractFilingProfileEvidence(
+  sections: Array<{ title: string; content: string | null }>,
+): Array<{ heading: string; paragraph: number; excerpt: string }> {
+  const priorityPattern = /\b(?:employees|associates|team members|people worldwide|headquarters|headquartered|principal executive offices|principal offices|conducted business in|operates? in|operates? across)\b/i;
+  const include = /\b(?:founded|established|headquarters|headquartered|principal executive offices|principal offices|employees|associates|team members|people worldwide|conducted business in|operates? in|operates? across|offices|facilities|manufacturing plants|products and services|we develop|we manufacture|we provide|we offer|we sell|we distribute)\b/i;
+  const exclude = /\b(?:stock[- ]based compensation|share[- ]based compensation|principal accountant fees|income taxes|deferred tax|pension plan|retirement plan|audit fees|tax provision|effective tax rate|related party|earnings per share|fair value|debt maturity|accounts receivable|cash flows from|goodwill|intangible assets)\b/i;
+  const priority: Array<{ heading: string; paragraph: number; excerpt: string }> = [];
+  const general: Array<{ heading: string; paragraph: number; excerpt: string }> = [];
+  let paragraph = 0;
+  for (const section of sections) {
+    const sentences = (section.content ?? "")
+      .split(/(?<=[.!?])\s+|\n+/)
+      .map(sentence => sentence.trim())
+      .filter(sentence => sentence.length >= 30 && sentence.length <= 1800);
+    for (const sentence of sentences) {
+      if (!include.test(sentence) || exclude.test(sentence)) continue;
+      const item = { heading: section.title, paragraph: ++paragraph, excerpt: sentence.slice(0, 720) };
+      (priorityPattern.test(sentence) ? priority : general).push(item);
+    }
+  }
+  return [...priority, ...general].slice(0, 120);
+}
+
 async function getCompanyResearch(cik: string, userAgent: string, selectedTopics: string[] = []): Promise<Response> {
   const submissionsUrl = `https://data.sec.gov/submissions/CIK${cik}.json`;
   let submissionsResponse: Response;
   try {
-    submissionsResponse = await fetch(submissionsUrl, { headers: { "User-Agent": userAgent, Accept: "application/json" } });
+    submissionsResponse = await fetch(submissionsUrl, { headers: { "User-Agent": userAgent, Accept: "application/json" }, signal: AbortSignal.timeout(15000) });
   } catch {
     return json({ error: "Could not retrieve SEC filing submissions.", sourceUrl: submissionsUrl }, 502);
   }
   if (!submissionsResponse.ok) return json({ error: "SEC filing submissions request failed.", upstreamStatus: submissionsResponse.status }, 502);
   const submissions = await submissionsResponse.json() as SubmissionPayload;
   const companyName = submissions.name ?? "Unknown company";
-  const officialSourcesPromise = findOfficialCompanySources(companyName).catch(() => ({
+  const profileTopics = selectedTopics.filter(topic => ["Company overview and history","Headquarters and registered locations","Operating regions and countries","Offices and facilities","Products and services","Employee count and workforce","Employee geography and nationalities","Workforce by country or region","Gender representation (where disclosed)"].includes(topic));
+  const officialSourcesPromise = profileTopics.length ? findOfficialCompanySources(companyName, profileTopics).catch(() => ({
     sourceSearch: "unavailable", retrievedAt: new Date().toISOString(), sources: [], facts: [], overview: null,
     notice: "External company website discovery could not be completed; the SEC filing will still be searched as a profile source.",
-  }));
+  })) : Promise.resolve({ sourceSearch: "not_requested", retrievedAt: new Date().toISOString(), sources: [], facts: [], overview: null, notice: "No company-profile topics were selected; profile source discovery was not run." });
   const recent = submissions.filings?.recent;
   const forms = recent?.form ?? [];
   const index = forms.findIndex(form => ["10-K", "20-F", "40-F"].includes(form));
@@ -411,20 +471,21 @@ async function getCompanyResearch(cik: string, userAgent: string, selectedTopics
   const documentUrl = `https://www.sec.gov/Archives/edgar/data/${cikPath}/${accession}/${primaryDocument}`;
   let documentResponse: Response;
   try {
-    documentResponse = await fetch(documentUrl, { headers: { "User-Agent": userAgent, Accept: "text/html" } });
+    documentResponse = await fetch(documentUrl, { headers: { "User-Agent": userAgent, Accept: "text/html" }, signal: AbortSignal.timeout(20000) });
   } catch {
     return json({ error: "Could not retrieve the annual filing document.", sourceUrl: documentUrl }, 502);
   }
   if (!documentResponse.ok) return json({ error: "The SEC annual filing document could not be retrieved.", upstreamStatus: documentResponse.status, sourceUrl: documentUrl }, 502);
   const html = await documentResponse.text();
   const text = cleanFilingText(html);
-  const sections = filingTopics.map(topic => {
+  const requiredKeys = new Set(selectedTopics.flatMap(topic => researchTopicSectionMap[topic] ?? []));
+  const sections = filingTopics.filter(topic => requiredKeys.has(topic.key)).map(topic => {
     const heading = findSectionHeading(text, topic.patterns);
     const content = heading ? extractItemSection(text, topic.patterns) : null;
     return {
       key: topic.key,
       title: topic.title,
-      item: topic.key === "business" ? "1" : topic.key === "risk" ? "1A" : topic.key === "legal" ? "3" : topic.key === "management" ? "7" : "9A",
+      item: topic.key === "business" ? "1" : topic.key === "properties" ? "2" : topic.key === "risk" ? "1A" : topic.key === "legal" ? "3" : topic.key === "management" ? "7" : "9A",
       content,
       source: { documentUrl, form, filedAt, reportDate, accessionNumber },
       extraction: { method: "line_preserving_heading_match", headingMatched: Boolean(heading), headingText: heading?.heading ?? null, confidence: content ? "candidate" : "unavailable" },
@@ -437,7 +498,7 @@ async function getCompanyResearch(cik: string, userAgent: string, selectedTopics
   const officialSources = await officialSourcesPromise;
   // Always use the identified SEC annual filing as a profile evidence source too.
   // This provides a reliable fallback when external search engines or publishers block retrieval.
-  const filingEvidence = extractBlocks(html);
+  const filingEvidence = profileTopics.length ? [...extractFilingProfileEvidence(sections), ...extractBlocks(html)] : [];
   const filingSource = {
     title: `${companyName} ${form} filed ${filedAt}`,
     url: documentUrl,
@@ -446,7 +507,7 @@ async function getCompanyResearch(cik: string, userAgent: string, selectedTopics
     retrievedAt: new Date().toISOString(),
     evidence: filingEvidence,
   };
-  const combinedSources = [...(officialSources.sources ?? []), ...(filingEvidence.length ? [filingSource] : [])];
+  const combinedSources = [...(filingEvidence.length ? [filingSource] : []), ...(officialSources.sources ?? [])];
   const combinedFacts = extractFacts(combinedSources);
   const profileFact = (key: string) => combinedFacts.find(fact => fact.key === key)?.value;
   const profileOverview = [
@@ -456,6 +517,10 @@ async function getCompanyResearch(cik: string, userAgent: string, selectedTopics
     profileFact("countries") ? `Operates in ${profileFact("countries")} countries` : null,
     profileFact("employees") ? `Reports ${profileFact("employees")} employees` : null,
   ].filter(Boolean).join(". ");
+  const publicSections = sections.map(section => ({
+    ...section,
+    content: section.content?.slice(0, 14000) ?? null,
+  }));
   const enrichedOfficialSources = {
     ...officialSources,
     sources: combinedSources.slice(0, 16),
@@ -476,6 +541,7 @@ async function getCompanyResearch(cik: string, userAgent: string, selectedTopics
     retrievedAt: new Date().toISOString(),
     status: "filing_sections_extracted",
     sections,
+    topicCoverage: buildTopicCoverage(selectedTopics, sections),
     findings: buildResearchFindings(selectedTopics, sections, documentUrl),
     notice: "The report searches selected topics within the latest identified annual filing. Evidence excerpts are source-attributed, not independently audited. A not-found result means no matching disclosure was found in the sections reviewed, not that the information does not exist elsewhere."
   });
@@ -505,6 +571,18 @@ export default {
         environment: env.APP_ENV ?? "development",
         version: "0.1.0",
       });
+    }
+
+    if (url.pathname.startsWith("/sec/")) {
+      const clientKey = request.headers.get("cf-connecting-ip") ?? "unknown";
+      const delta = url.pathname.endsWith("/research") ? 5 : 1;
+      const { success } = await env.API_RATE_LIMITER.limit({ key: clientKey, delta });
+      if (!success) {
+        return json({
+          error: "API rate limit exceeded. Please wait before trying again.",
+          retryAfterSeconds: 60,
+        }, 429);
+      }
     }
 
     if (url.pathname === "/sec/lookup") {

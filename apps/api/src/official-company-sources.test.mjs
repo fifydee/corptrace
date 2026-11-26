@@ -10,8 +10,46 @@ const compiled = ts.transpileModule(source, {
 const mod = await import("data:text/javascript;base64," + Buffer.from(compiled).toString("base64"));
 
 test("decodes HTML entities and preserves readable paragraph boundaries", () => {
-  assert.equal(mod.textOf("<p>Dell &amp; Co. has &#57;7,000 employees.</p><p>Second paragraph.</p>"),
-    "Dell & Co. has 97,000 employees.\nSecond paragraph.");
+  assert.equal(
+    mod.textOf("<p>Dell &amp; Co. has &#57;7,000 employees.</p><p>Second paragraph.</p>"),
+    ["Dell & Co. has 97,000 employees.", "Second paragraph."].join("\n")
+  );
+});
+
+test("parses DuckDuckGo result links when href and class attributes vary in order", () => {
+  const target = "https://www.dell.com/about";
+  const html = `<div class="result"><div class="result__body"><h2><a rel="nofollow" href="/l/?uddg=${encodeURIComponent(target)}" class="result__a">Dell Technologies | About</a></h2><a class="result__snippet">Dell Technologies is a global technology company.</a></div></div>`;
+  const results = mod.parseDuckDuckGoResults(html, "https://html.duckduckgo.com/html/");
+  assert.equal(results.length, 1);
+  assert.equal(results[0].url, target);
+  assert.match(results[0].title, /Dell Technologies/);
+  assert.match(results[0].snippet, /global technology company/);
+});
+
+test("parses Google News RSS links with publisher attribution", () => {
+  const xml = `<rss><channel><item><title>Dell Technologies reports quarterly results - Reuters</title><link>https://news.google.com/rss/articles/abc123</link><description>Dell Technologies reported its latest quarterly results and discussed demand for AI servers.</description><source url="https://www.reuters.com">Reuters</source></item></channel></rss>`;
+  const results = mod.parseGoogleNewsRssResults(xml);
+  assert.equal(results.length, 1);
+  assert.equal(results[0].url, "https://news.google.com/rss/articles/abc123");
+  assert.equal(results[0].publisherUrl, "https://www.reuters.com/");
+  assert.match(results[0].snippet, /AI servers/);
+  assert.equal(mod.classify(results[0].publisherUrl, "Dell Technologies"), "business_publication");
+});
+
+test("parses Bing RSS result items as a second fallback", () => {
+  const xml = `<rss><channel><item><title>Pfizer About</title><link>https://www.pfizer.com/about</link><description>Pfizer is a global biopharmaceutical company.</description></item></channel></rss>`;
+  const results = mod.parseBingRssResults(xml);
+  assert.equal(results.length, 1);
+  assert.equal(results[0].url, "https://www.pfizer.com/about");
+  assert.match(results[0].snippet, /biopharmaceutical company/);
+});
+
+test("parses Bing organic results as a fallback provider", () => {
+  const html = `<ol id="b_results"><li class="b_algo"><h2><a href="https://www.pfizer.com/about">About Pfizer</a></h2><div class="b_caption"><p>Pfizer is a global biopharmaceutical company.</p></div></li></ol>`;
+  const results = mod.parseBingResults(html);
+  assert.equal(results.length, 1);
+  assert.equal(results[0].url, "https://www.pfizer.com/about");
+  assert.match(results[0].snippet, /biopharmaceutical company/);
 });
 
 test("unwraps DuckDuckGo redirect links and rejects unsafe protocols", () => {
@@ -21,10 +59,39 @@ test("unwraps DuckDuckGo redirect links and rejects unsafe protocols", () => {
   assert.equal(mod.cleanUrl("http://example.com", "https://example.com"), null);
 });
 
+test("removes search-engine tracking parameters from canonical source URLs", () => {
+  assert.equal(
+    mod.cleanUrl("https://www.dell.com/en-us?msockid=abc123&utm_source=bing", "https://www.bing.com/search"),
+    "https://www.dell.com/en-us"
+  );
+});
+
+test("unwraps Bing click tracking URLs before source retrieval", () => {
+  const target = "https://www.dell.com/en-us/about";
+  const encoded = "a1" + Buffer.from(target).toString("base64url");
+  const redirect = "https://www.bing.com/ck/a?u=" + encoded + "&ntb=1";
+  assert.equal(mod.cleanUrl(redirect, "https://www.bing.com/search"), target);
+});
+
 test("does not mistake a third-party domain containing a company token for the company itself", () => {
   assert.equal(mod.classify("https://dell-careers.example.org/jobs", "Dell Technologies"), "other");
   assert.equal(mod.classify("https://www.dell.com/about", "Dell Technologies"), "company");
+  assert.equal(mod.classify("https://investors.delltechnologies.com/", "Dell Technologies"), "company");
+  assert.equal(mod.classify("https://www.marketwatch.com/story/dell", "Dell Technologies"), "business_publication");
+  assert.equal(mod.classify("https://uk.finance.yahoo.com/news/dell", "Dell Technologies"), "business_publication");
   assert.equal(mod.classify("https://www.sec.gov/Archives/edgar/data/1/filing.htm", "Dell Technologies"), "regulator");
+});
+
+test("extracts business descriptions that use active company verbs", () => {
+  const facts = mod.extractFacts([{
+    title: "Dell company profile",
+    url: "https://www.bloomberg.com/profile/company/DELL:US",
+    domain: "bloomberg.com",
+    sourceType: "business_publication",
+    retrievedAt: "2026-11-26T00:00:00.000Z",
+    evidence: [{ heading: "Company Profile", paragraph: 1, excerpt: "Dell Technologies Inc. provides computer hardware products. The Company designs and manufactures laptops, desktops, tablets, workstations and servers." }]
+  }]);
+  assert.match(facts.find(fact => fact.key === "business")?.value ?? "", /provides computer hardware products/i);
 });
 
 test("extracts source-attributed company facts without treating facility square footage as office count", () => {
@@ -52,4 +119,178 @@ test("extracts source-attributed company facts without treating facility square 
   assert.match(facts.find(x => x.key === "headquarters")?.value ?? "", /One Dell Way/);
   assert.equal(facts.some(x => x.key === "offices"), false);
   assert.match(facts.find(x => x.key === "business")?.value ?? "", /global technology company/i);
+});
+
+test("retains source-specific fact conflicts but excludes unclassified third-party facts", () => {
+  const sources = [
+    {
+      title: "Company workforce page",
+      url: "https://www.dell.com/about",
+      domain: "dell.com",
+      sourceType: "company",
+      retrievedAt: "2026-11-26T00:00:00.000Z",
+      evidence: [{ heading: "Workforce", paragraph: 1, excerpt: "Dell Technologies employs approximately 97,000 employees worldwide." }]
+    },
+    {
+      title: "SEC annual report",
+      url: "https://www.sec.gov/Archives/edgar/data/1/filing.htm",
+      domain: "sec.gov",
+      sourceType: "regulator",
+      retrievedAt: "2026-11-26T00:00:00.000Z",
+      evidence: [{ heading: "Business", paragraph: 1, excerpt: "As of January 30, 2026, we had approximately 96,000 employees." }]
+    },
+    {
+      title: "Unclassified blog",
+      url: "https://example.org/dell",
+      domain: "example.org",
+      sourceType: "other",
+      retrievedAt: "2026-11-26T00:00:00.000Z",
+      evidence: [{ heading: "About", paragraph: 1, excerpt: "Dell has 1,000 employees according to this unverified blog." }]
+    }
+  ];
+  const facts = mod.extractFacts(sources).filter(fact => fact.key === "employees");
+  assert.deepEqual(facts.map(fact => fact.value), ["97,000", "96,000"]);
+  assert.deepEqual(facts.map(fact => fact.sourceUrl), ["https://www.dell.com/about", "https://www.sec.gov/Archives/edgar/data/1/filing.htm"]);
+});
+
+test("filters irrelevant financial footnotes from company profile evidence and normalises sentence starts", () => {
+  const html = [
+    "<h2>Company Overview</h2>",
+    "<p>dell technologies is a global technology company that designs, develops, manufactures and sells computers and infrastructure solutions to customers worldwide.</p>",
+    "<h2>Headquarters and Locations</h2>",
+    "<p>The company is headquartered in Round Rock, Texas and operates in more than 170 countries around the world.</p>",
+    "<h2>Stock-Based Compensation</h2>",
+    "<p>Dell Technologies Inc. Stock-Based Compensation Plan provides stock incentive awards to employees and other service providers of the Company.</p>",
+    "<h2>Revenue by Geography</h2>",
+    "<p>The following table presents net revenue allocated between the United States and foreign countries for the period indicated.</p>",
+    "<h2>Products and Services</h2>",
+    "<p>The company offers personal computers, servers, storage, networking equipment, software and technology support services to businesses and consumers.</p>"
+  ].join("");
+  const evidence = mod.extractBlocks(html);
+  assert.equal(evidence.some(x => /Stock-Based Compensation|net revenue allocated/i.test(x.excerpt)), false);
+  assert.ok(evidence.every(x => /^[A-Z]/.test(x.excerpt)));
+  assert.ok(evidence.some(x => /global technology company/i.test(x.excerpt)));
+  assert.ok(evidence.some(x => /personal computers, servers/i.test(x.excerpt)));
+});
+
+test("rejects stock-compensation paragraphs even when they mention employees and services", () => {
+  const html = [
+    "<h2>Stock-Based Compensation</h2>",
+    "<p>The stock-based compensation plan provides stock incentive awards to employees and other service providers of the Company.</p>",
+    "<h2>Business Overview</h2>",
+    "<p>Acme is a global technology company that designs and sells cloud software to businesses worldwide.</p>"
+  ].join("");
+  const evidence = mod.extractBlocks(html);
+  assert.equal(evidence.some(x => /stock-based compensation|stock incentive awards/i.test(x.excerpt)), false);
+  assert.equal(evidence.some(x => /global technology company/i.test(x.excerpt)), true);
+});
+
+
+test("extracts relevant business descriptions and product offerings across retail and healthcare industries", () => {
+  const retailHtml = [
+    "<h2>About the Company</h2>",
+    "<p>Northstar Retail is a specialty retailer serving households through stores and digital channels.</p>",
+    "<h2>Products and Services</h2>",
+    "<p>The company offers home furnishings, appliances and delivery services to customers across the country.</p>",
+    "<h2>Financial Statements</h2>",
+    "<p>Net sales are presented by merchandise category and geographic region in the following table.</p>"
+  ].join("");
+  const healthcareHtml = [
+    "<h2>Company Overview</h2>",
+    "<p>MedNova is a biopharmaceutical company focused on developing medicines for patients with serious diseases.</p>",
+    "<h2>Products and Services</h2>",
+    "<p>The company develops and markets prescription medicines and provides patient support services.</p>",
+    "<h2>Stock-Based Compensation</h2>",
+    "<p>Restricted stock units are granted to eligible employees and vest over a four-year period.</p>"
+  ].join("");
+
+  const retailEvidence = mod.extractBlocks(retailHtml);
+  const healthcareEvidence = mod.extractBlocks(healthcareHtml);
+  assert.ok(retailEvidence.some(x => /specialty retailer/i.test(x.excerpt)));
+  assert.ok(retailEvidence.some(x => /offers home furnishings/i.test(x.excerpt)));
+  assert.ok(healthcareEvidence.some(x => /biopharmaceutical company/i.test(x.excerpt)));
+  assert.ok(healthcareEvidence.some(x => /develops and markets prescription medicines/i.test(x.excerpt)));
+  assert.equal(healthcareEvidence.some(x => /restricted stock units/i.test(x.excerpt)), false);
+});
+
+test("extracts Walmart-style associate counts as workforce facts", () => {
+  // Based on Walmart FY2026 Form 10-K, Item 1: https://www.sec.gov/Archives/edgar/data/104169/000010416926000055/wmt-20260131.htm
+  const html = "<h2>Human Capital</h2><p>Approximately 2.1 million associates around the world, including approximately 1.6 million associates in the U.S.</p>";
+  const evidence = mod.extractBlocks(html);
+  const facts = mod.extractFacts([{
+    title: "Walmart annual report",
+    url: "https://www.sec.gov/Archives/edgar/data/104169/filing.htm",
+    domain: "sec.gov",
+    sourceType: "regulator",
+    retrievedAt: "2026-11-26T00:00:00.000Z",
+    evidence
+  }]);
+  assert.equal(facts.find(x => x.key === "employees")?.value, "2.1 million");
+});
+
+test("extracts Pfizer-style employee disclosures from an annual filing", () => {
+  // Based on Pfizer 2025 Form 10-K, Our People: https://www.sec.gov/Archives/edgar/data/78003/000007800326000026/pfe-20251231.htm
+  const html = "<h2>Our People</h2><p>As of December 31, 2025, we employed approximately 75,000 people worldwide.</p>";
+  const evidence = mod.extractBlocks(html);
+  const facts = mod.extractFacts([{
+    title: "Pfizer 2025 Form 10-K",
+    url: "https://www.sec.gov/Archives/edgar/data/78003/000007800326000026/pfe-20251231.htm",
+    domain: "sec.gov",
+    sourceType: "regulator",
+    retrievedAt: "2026-11-26T00:00:00.000Z",
+    evidence
+  }]);
+  assert.equal(facts.find(x => x.key === "employees")?.value, "75,000");
+});
+
+test("extracts headquarters from SEC principal-office wording and country counts from conducted-business wording", () => {
+  const factFor = (excerpt, key) => mod.extractFacts([{
+    title: "SEC annual report",
+    url: "https://www.sec.gov/Archives/edgar/data/1/filing.htm",
+    domain: "sec.gov",
+    sourceType: "regulator",
+    retrievedAt: "2026-11-26T00:00:00.000Z",
+    evidence: [{ heading: "Business", paragraph: 1, excerpt }]
+  }]).find(fact => fact.key === key);
+
+  assert.match(
+    factFor("The mailing address of our principal executive offices is One Dell Way, Round Rock, Texas 78682.", "headquarters")?.value ?? "",
+    /One Dell Way, Round Rock/
+  );
+  assert.match(
+    factFor("We maintain our principal offices in Bentonville, Arkansas.", "headquarters")?.value ?? "",
+    /Bentonville, Arkansas/
+  );
+  assert.match(
+    factFor("Our global headquarters are located in New York City.", "headquarters")?.value ?? "",
+    /New York City/
+  );
+  assert.equal(
+    factFor("Walmart International conducted business in 18 countries.", "countries")?.value,
+    "18"
+  );
+  assert.equal(factFor("As of January 30, 2026, we had approximately 97,000 employees.", "employees")?.value, "97,000");
+  assert.equal(factFor("Our business is delivered by approximately 2.1 million associates worldwide.", "employees")?.value, "2.1 million");
+  assert.equal(factFor("As of December 31, 2025, we employed approximately 75,000 people worldwide.", "employees")?.value, "75,000");
+});
+
+test("does not infer office counts from property descriptions across industries", () => {
+  const html = [
+    "<h2>Facilities</h2>",
+    "<p>MedNova operates research laboratories and manufacturing facilities across several regions.</p>",
+    "<p>The company leases 2.4 million square feet of laboratory, office and production space.</p>",
+    "<h2>Business Overview</h2>",
+    "<p>MedNova is a biopharmaceutical company developing innovative medicines for patients.</p>"
+  ].join("");
+  const evidence = mod.extractBlocks(html);
+  const facts = mod.extractFacts([{
+    title: "MedNova annual report",
+    url: "https://www.sec.gov/Archives/edgar/data/2/filing.htm",
+    domain: "sec.gov",
+    sourceType: "regulator",
+    retrievedAt: "2026-11-26T00:00:00.000Z",
+    evidence
+  }]);
+  assert.equal(facts.some(x => x.key === "offices"), false);
+  assert.ok(evidence.some(x => /research laboratories and manufacturing facilities/i.test(x.excerpt)));
 });

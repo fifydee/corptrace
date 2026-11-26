@@ -3,20 +3,62 @@ name: Deploy CorpTrace
 on:
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 jobs:
-  deploy-api:
+  validate:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22.12.0
+          cache: npm
+      - name: Install dependencies from lockfile
+        run: npm ci
+      - name: Require production branch
+        run: test "$GITHUB_REF" = "refs/heads/main" || { echo "::error::Production deployments must be run from main after the deployment PR is merged."; exit 1; }
+      - name: Check required deployment configuration
+        shell: bash
+        run: |
+          test -n "$CLOUDFLARE_API_TOKEN" || { echo "::error::CLOUDFLARE_API_TOKEN secret is missing"; exit 1; }
+          test -n "$CLOUDFLARE_ACCOUNT_ID" || { echo "::error::CLOUDFLARE_ACCOUNT_ID secret is missing"; exit 1; }
+          test -n "$VITE_API_BASE_URL" || { echo "::error::VITE_API_BASE_URL repository variable is missing"; exit 1; }
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          VITE_API_BASE_URL: ${{ vars.VITE_API_BASE_URL }}
+      - name: Audit dependencies
+        run: npm audit --audit-level=high
+      - name: Run API tests
+        run: npm test --workspace @corptrace/api
+      - name: Type-check API
+        run: npm run typecheck --workspace @corptrace/api
+      - name: Validate Worker deployment bundle
+        run: npm exec --workspace @corptrace/api -- wrangler deploy --dry-run --outdir /tmp/corptrace-worker --config apps/api/wrangler.toml
+      - name: Build web app
+        run: npm run build --workspace @corptrace/web
+        env:
+          VITE_API_BASE_URL: ${{ vars.VITE_API_BASE_URL }}
+
+  deploy-api:
+    needs: validate
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
-      - name: Install dependencies
-        run: npm install
-      - name: Type-check API
-        run: npm run typecheck --workspace @corptrace/api
-      - name: Deploy Worker API
-        run: npx wrangler deploy --config apps/api/wrangler.toml
+          node-version: 22.12.0
+          cache: npm
+      - name: Install dependencies from lockfile
+        run: npm ci
+      - name: Deploy Cloudflare Worker
+        run: npx wrangler deploy --config apps/api/wrangler.toml --var APP_ENV:production
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
@@ -24,21 +66,20 @@ jobs:
   deploy-web:
     needs: deploy-api
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
-      - name: Install dependencies
-        run: npm install
-      - name: Check API origin configuration
-        run: test -n "$VITE_API_BASE_URL"
-        env:
-          VITE_API_BASE_URL: ${{ vars.VITE_API_BASE_URL }}
+          node-version: 22.12.0
+          cache: npm
+      - name: Install dependencies from lockfile
+        run: npm ci
       - name: Build web app
         run: npm run build --workspace @corptrace/web
         env:
           VITE_API_BASE_URL: ${{ vars.VITE_API_BASE_URL }}
+          # This workflow deploys the frontend only after the Worker is live.
       - name: Ensure Cloudflare Pages project exists
         shell: bash
         run: |
