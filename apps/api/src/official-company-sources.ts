@@ -43,7 +43,7 @@ export function cleanUrl(href: string, base: string): string | null {
     return u.toString();
   } catch { return null; }
 }
-async function searchWeb(query: string): Promise<Array<{title:string;url:string;snippet:string}>> {
+async function searchWeb(query: string): Promise<Array<{ title: string; url: string; snippet: string }>> {
   const endpoint = "https://html.duckduckgo.com/html/?q=" + encodeURIComponent(query);
   const response = await fetch(endpoint, {
     headers: {
@@ -52,15 +52,19 @@ async function searchWeb(query: string): Promise<Array<{title:string;url:string;
     }
   });
   if (!response.ok) return [];
+
   const html = await response.text();
-  const results: Array<{title:string;url:string;snippet:string}> = [];
-  const matches = [...html.matchAll(/<div class="result[^"]*"[^>]*>([\\s\\S]*?)<\\/div>\\s*<\\/div>/gi)];
-  const source = matches.length ? matches.map(m => m[1]).join(String.fromCharCode(10)) : html;
-  for (const match of source.matchAll(/<a[^>]+class="result__a"[^>]+href="([^"]+)"[^>]*>([\\s\\S]*?)<\\/a>/gi)) {
+  const results: Array<{ title: string; url: string; snippet: string }> = [];
+  const matches = [...html.matchAll(/<div class="result[^"]*"[^>]*>([\s\S]*?)<\/div>\s*<\/div>/gi)];
+  const source = matches.length ? matches.map(match => match[1]).join(String.fromCharCode(10)) : html;
+
+  for (const match of source.matchAll(/<a[^>]+class="result__a"[^>]+href="([^"]+)"[^>]*>([\s\S]*?)<\/a>/gi)) {
     const url = cleanUrl(decode(match[1]), endpoint);
     if (!url || results.some(item => item.url === url)) continue;
-    const after = source.slice(match.index ?? 0, (match.index ?? 0) + 2400);
-    const snippetMatch = after.match(/class="result__snippet"[^>]*>([\\s\\S]*?)<\\/a>|class="result__snippet"[^>]*>([\\s\\S]*?)<\\/div>/i);
+
+    const offset = match.index ?? 0;
+    const after = source.slice(offset, offset + 2400);
+    const snippetMatch = after.match(/class="result__snippet"[^>]*>([\s\S]*?)<\/a>|class="result__snippet"[^>]*>([\s\S]*?)<\/div>/i);
     results.push({
       title: textOf(match[2]).slice(0, 180),
       url,
