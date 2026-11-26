@@ -4,6 +4,9 @@ import { cleanFilingText, findSectionHeading, extractItemSection } from "./filin
 export interface Env {
   APP_ENV?: string;
   SEC_USER_AGENT?: string;
+  API_RATE_LIMITER: {
+    limit(options: { key: string; delta?: number }): Promise<{ success: boolean }>;
+  };
 }
 
 type SecResource = "lookup" | "submissions" | "facts";
@@ -530,6 +533,18 @@ export default {
         environment: env.APP_ENV ?? "development",
         version: "0.1.0",
       });
+    }
+
+    if (url.pathname.startsWith("/sec/")) {
+      const clientKey = request.headers.get("cf-connecting-ip") ?? "unknown";
+      const delta = url.pathname.endsWith("/research") ? 5 : 1;
+      const { success } = await env.API_RATE_LIMITER.limit({ key: clientKey, delta });
+      if (!success) {
+        return json({
+          error: "API rate limit exceeded. Please wait before trying again.",
+          retryAfterSeconds: 60,
+        }, 429);
+      }
     }
 
     if (url.pathname === "/sec/lookup") {
