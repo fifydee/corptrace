@@ -234,7 +234,7 @@ export async function findOfficialCompanySources(companyName:string, selectedTop
     if(!sourceUrl) continue;
     const sourceType=classify(sourceUrl,companyName);
     if(sourceType==="other") continue;
-    const domain=new URL(sourceUrl).hostname.toLowerCase().replace(/^www\\./,"");
+    const domain=new URL(sourceUrl).hostname.toLowerCase().replace(/^www\./,"");
     const snippetEvidence=()=>candidate.snippet.length>=50
       ? [{heading:"Search result snippet (page fetch unavailable)",paragraph:1,excerpt:candidate.snippet.slice(0,720)}]
       : [];
@@ -248,11 +248,11 @@ export async function findOfficialCompanySources(companyName:string, selectedTop
       }
       const url=cleanUrl(response.url||sourceUrl,sourceUrl); if(!url)continue;
       const html=(await response.text()).slice(0,2_000_000), pageText=textOf(html);
-      const title=decode(html.match(/<title[^>]*>([\\s\\S]*?)<\\/title>/i)?.[1]??candidate.title).replace(/<[^>]+>/g," ").trim().slice(0,180);
+      const title=decode(html.match(/<title[^>]*>([\s\S]*?)<\/title>/i)?.[1]??candidate.title).replace(/<[^>]+>/g," ").trim().slice(0,180);
       const hay=normalise(title+" "+pageText.slice(0,12000)), matched=terms.filter(t=>hay.includes(t)).length;
       if(matched===0)continue;
       const evidence=extractBlocks(html);
-      const finalDomain=new URL(url).hostname.toLowerCase().replace(/^www\\./,"");
+      const finalDomain=new URL(url).hostname.toLowerCase().replace(/^www\./,"");
       if(!evidence.length){
         console.warn("CorpTrace external page yielded no evidence blocks",{url,title,contentLength:html.length,textLength:pageText.length});
         const fallback=snippetEvidence();
