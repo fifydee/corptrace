@@ -137,6 +137,12 @@ for (const company of companies) {
         }
       }
 
+      const headquartersFinding = body.findings?.find((finding) => finding.topic === "Headquarters and registered locations");
+      if (!headquartersFinding || headquartersFinding.status !== "disclosed_in_filing") {
+        errors.push("Headquarters topic was not disclosed in the selected annual filing sections");
+      }
+      const propertiesSection = body.sections?.find((section) => section.key === "properties");
+      if (!propertiesSection?.content) errors.push("Item 2 / Properties section was not extracted");
       const workforceFinding = body.findings?.find((finding) => finding.topic === "Employee count and workforce");
       if (!workforceFinding) {
         errors.push("Workforce topic result is missing");
