@@ -154,7 +154,7 @@ try {
       const unnamed = controls.filter(element => {
         const explicit = element.getAttribute("aria-label")?.trim();
         const labelledBy = element.getAttribute("aria-labelledby");
-        const referenced = labelledBy && labelledBy.split(/\\s+/).some(id => document.getElementById(id)?.textContent?.trim());
+        const referenced = labelledBy && labelledBy.split(/\s+/).some(id => document.getElementById(id)?.textContent?.trim());
         const associated = element.labels && [...element.labels].some(label => label.textContent.trim());
         const content = ["BUTTON", "A"].includes(element.tagName) && element.textContent.trim();
         return !(explicit || referenced || associated || content);
