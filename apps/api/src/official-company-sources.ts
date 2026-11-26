@@ -194,7 +194,7 @@ export function extractBlocks(html: string): Evidence[] {
 }
 export function extractFacts(sources: CompanySource[]): CompanyFact[] {
   const definitions: Array<{key:string;label:string;re:RegExp}>=[
-    {key:"business",label:"Company overview",re:/\b((?:is|are)\s+(?:a|an)\s+[^.!?]{15,220}(?:company|provider|manufacturer|technology|retailer|platform|business|services|products)[^.!?]{0,180})[.!?]/i},
+    {key:"business",label:"Company overview",re:/\b((?:(?:is|are)\s+(?:a|an)\s+[^.!?]{15,220}(?:company|provider|manufacturer|technology|retailer|platform|business|services|products)[^.!?]{0,180})|(?:(?:provides|manufactures|designs|develops|sells|offers|produces|distributes)\s+[^.!?]{15,220}))[.!?]/i},
     {key:"founded",label:"Founded",re:/\b(?:founded|established|incorporated)\s+(?:in\s+)?(?:in\s+)?(?:the year\s+)?(\d{4})\b/i},
     {key:"headquarters",label:"Headquarters",re:/\b(?:headquartered\s+(?:in|at)|headquarters(?:\s+(?:are|is))?\s+(?:located\s+)?(?:in|at)|principal executive offices(?:\s+(?:are|is))?(?:\s+(?:located\s+)?(?:in|at))?|principal offices\s+(?:are\s+)?(?:located\s+)?(?:in|at)|based\s+(?:in|at))\s+([^.;]{3,100})/i},
     {key:"employees",label:"Employees",re:/\b(?:approximately\s+|about\s+|more than\s+|over\s+)?([0-9][\d,]*(?:\.\d+)?\s*(?:million|thousand)?)\s+(?:employees|associates|team members|people)\b/i},
@@ -211,13 +211,13 @@ export async function findOfficialCompanySources(companyName:string, selectedTop
   sourceSearch:string;retrievedAt:string;notice:string;sources:CompanySource[];facts:CompanyFact[];
   overview:string|null;
 }>{
-  const terms=companyTerms(companyName), qSimple=terms.join(" ");
+  const terms=companyTerms(companyName), qSimple=terms.join(" "), qQuoted='"'+companyName+'"';
   if(!terms.length)return {sourceSearch:"not_run",retrievedAt:new Date().toISOString(),notice:"Company name unavailable.",sources:[],facts:[],overview:null};
   const topicText=selectedTopics.join(" ").toLowerCase();
   const wants=(...terms:string[])=>!selectedTopics.length || terms.some(term=>topicText.includes(term));
   const queries=[
-    ...(wants("overview","history","company profile") ? [qSimple+" official company overview about us",qSimple+" company profile Reuters Bloomberg Financial Times"] : []),
-    ...(wants("headquarters","operating regions","locations","countries","offices") ? [qSimple+" official headquarters address locations countries of operation",qSimple+" corporate headquarters principal office annual report"] : []),
+    ...(wants("overview","history","company profile") ? [qQuoted+" company overview official",qSimple+" official corporate about us",qQuoted+" Reuters company profile",qQuoted+" Bloomberg company profile"] : []),
+    ...(wants("headquarters","operating regions","locations","countries","offices") ? [qSimple+" official headquarters address locations countries of operation",qQuoted+" corporate headquarters principal office annual report"] : []),
     ...(wants("products","services","business segments") ? [qSimple+" official products services solutions business segments"] : []),
     ...(wants("employee","workforce","gender","nationalities") ? [qSimple+" employees workforce headcount latest annual report",qSimple+" employees associates workforce by region official"] : []),
     ...(wants("financial","revenue","profit","income") ? [qSimple+" latest annual report financial results revenue profit investor relations"] : []),
