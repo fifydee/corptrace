@@ -203,7 +203,7 @@ export function extractFacts(sources: CompanySource[]): CompanyFact[] {
   ];
   const found = new Map<string,CompanyFact>();
   for(const s of sources) if(s.sourceType !== "other") for(const e of s.evidence){
-    for(const d of definitions){const m=e.excerpt.match(d.re); if(m && !found.has(d.key)) found.set(d.key,{key:d.key,label:d.label,value:m[1].trim(),sourceTitle:s.title,sourceUrl:s.url,sourceType:s.sourceType,evidence:e.excerpt,retrievedAt:s.retrievedAt});}
+    for(const d of definitions){const m=e.excerpt.match(d.re); const factId=d.key+"|"+s.url; if(m && !found.has(factId)) found.set(factId,{key:d.key,label:d.label,value:m[1].trim(),sourceTitle:s.title,sourceUrl:s.url,sourceType:s.sourceType,evidence:e.excerpt,retrievedAt:s.retrievedAt});}
   }
   return [...found.values()];
 }
@@ -266,7 +266,11 @@ export async function findOfficialCompanySources(companyName:string, selectedTop
       if(evidence.length) sources.push({title:candidate.title,url:sourceUrl,domain,sourceType,retrievedAt:new Date().toISOString(),evidence,evidenceOrigin:"search_result_snippet"});
     }
   }
-  const ranked=sources.sort((a,b)=>({company:0,regulator:1,business_publication:2,other:3}[a.sourceType]-{company:0,regulator:1,business_publication:2,other:3}[b.sourceType])).slice(0,12);
+  const ranked=[
+    ...sources.filter(source=>source.sourceType==="company").slice(0,5),
+    ...sources.filter(source=>source.sourceType==="business_publication").slice(0,4),
+    ...sources.filter(source=>source.sourceType==="regulator").slice(0,3),
+  ].slice(0,12);
   const facts=extractFacts(ranked);
   const fact=(key:string)=>facts.find(f=>f.key===key)?.value;
   const overviewParts=[
