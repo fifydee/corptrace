@@ -1,7 +1,7 @@
 type Evidence = { heading: string; paragraph: number; excerpt: string };
 type CompanySource = {
   title: string; url: string; domain: string; sourceType: "company" | "regulator" | "business_publication" | "other";
-  retrievedAt: string; evidence: Evidence[];
+  retrievedAt: string; evidence: Evidence[]; evidenceOrigin?: "retrieved_page" | "search_result_snippet";
 };
 type CompanyFact = {
   key: string; label: string; value: string; sourceTitle: string; sourceUrl: string;
@@ -40,6 +40,7 @@ export function cleanUrl(href: string, base: string): string | null {
       const target = u.searchParams.get("uddg");
       if (target) return cleanUrl(target, base);
     }
+    for (const key of [...u.searchParams.keys()]) if (/^(msockid|utm_.+|gclid|fbclid|cvid|ocid|ntb)$/i.test(key)) u.searchParams.delete(key);
     if (u.hostname === "www.bing.com" && u.pathname === "/ck/a") {
       const encoded = u.searchParams.get("u") ?? "";
       if (encoded.startsWith("a1")) {
@@ -167,7 +168,7 @@ async function searchWeb(query: string): Promise<Array<{ title: string; url: str
 export function classify(url: string, companyName: string): CompanySource["sourceType"] {
   const host = new URL(url).hostname.toLowerCase();
   if (/(sec\.gov|companieshouse\.gov)/.test(host)) return "regulator";
-  if (/(forbes\.com|businessinsider\.com|reuters\.com|bloomberg\.com|wsj\.com|ft\.com|cnbc\.com|apnews\.com|bbc\.com|theguardian\.com|fortune\.com|nytimes\.com)/.test(host)) return "business_publication";
+  if (/(^|\.)(forbes\.com|businessinsider\.com|reuters\.com|bloomberg\.com|wsj\.com|ft\.com|cnbc\.com|apnews\.com|bbc\.com|theguardian\.com|fortune\.com|nytimes\.com)$/.test(host)) return "business_publication";
   const labels = host.split(".");
   return companyTerms(companyName).some(term => labels.some(label => label === term)) ? "company" : "other";
 }
@@ -201,7 +202,7 @@ export function extractFacts(sources: CompanySource[]): CompanyFact[] {
     {key:"countries",label:"Countries of operation",re:/\b(?:conducted business in|conduct business in|operates in|operate in|operates across|operating in|across|in)\s+(?:(?:more than|over)\s+)?([0-9][\d,]*)\s+countries\b/i},
   ];
   const found = new Map<string,CompanyFact>();
-  for(const s of sources) for(const e of s.evidence){
+  for(const s of sources) if(s.sourceType !== "other") for(const e of s.evidence){
     for(const d of definitions){const m=e.excerpt.match(d.re); if(m && !found.has(d.key)) found.set(d.key,{key:d.key,label:d.label,value:m[1].trim(),sourceTitle:s.title,sourceUrl:s.url,sourceType:s.sourceType,evidence:e.excerpt,retrievedAt:s.retrievedAt});}
   }
   return [...found.values()];
@@ -215,14 +216,14 @@ export async function findOfficialCompanySources(companyName:string, selectedTop
   const topicText=selectedTopics.join(" ").toLowerCase();
   const wants=(...terms:string[])=>!selectedTopics.length || terms.some(term=>topicText.includes(term));
   const queries=[
-    ...(wants("overview","history","company profile") ? [`${qName} official company overview history founded what does it do`,`${qName} investor relations about company business description`] : []),
+    ...(wants("overview","history","company profile") ? [`${qName} official company overview history founded what does it do`,`${qName} investor relations about company business description`,`${qName} official about us corporate company profile`,`${qName} company profile Reuters Bloomberg Financial Times`] : []),
     ...(wants("headquarters","operating regions","locations","countries","offices") ? [`${qName} official headquarters countries of operation offices locations facilities`,`${qName} annual report geographic locations offices facilities countries`] : []),
     ...(wants("products","services","business segments") ? [`${qName} official products services solutions business segments`,`${qName} annual report products services offerings`] : []),
     ...(wants("employee","workforce","gender","nationalities") ? [`${qName} latest annual report employee headcount workforce geography gender`,`${qName} official workforce employees by region diversity report`] : []),
     ...(wants("financial","revenue","profit","income") ? [`${qName} latest annual report financial results revenue profit investor relations`] : []),
   ];
   const resultSets=await Promise.all(queries.map(q=>searchWeb(q).catch(()=>[])));
-  const rawCandidates=resultSets.flat().filter((r,i,a)=>a.findIndex(x=>x.url===r.url)===i);
+  const rawCandidates=resultSets.flat().map(result=>({...result,url:cleanUrl(result.url,"https://www.bing.com/")??result.url})).filter((r,i,a)=>a.findIndex(x=>x.url===r.url)===i);
   const candidates=rawCandidates
     .filter(r=>{const hay=normalise(r.title+" "+r.snippet+" "+r.url);return terms.some(t=>hay.includes(t));})
     .slice(0,18);
@@ -231,15 +232,30 @@ export async function findOfficialCompanySources(companyName:string, selectedTop
   for(const candidate of candidates){
     try{
       const response=await fetch(candidate.url,{headers:{"User-Agent":"Mozilla/5.0 (compatible; CorpTraceResearch/2.0)","Accept":"text/html,application/xhtml+xml"},redirect:"follow",signal:AbortSignal.timeout(10000)});
-      if(!response.ok || !(response.headers.get("content-type")??"").includes("text/html")){console.warn("CorpTrace external page fetch was not usable",{url:candidate.url,status:response.status,contentType:response.headers.get("content-type")});continue;}
-      const url=cleanUrl(response.url||candidate.url,candidate.url); if(!url)continue; const html=(await response.text()).slice(0,2_000_000), pageText=textOf(html);
+      const sourceUrl = cleanUrl(candidate.url, candidate.url);
+      if(!sourceUrl) continue;
+      const sourceType = classify(sourceUrl, companyName);
+      if(sourceType === "other") continue;
+      if(!response.ok || !(response.headers.get("content-type")??"").includes("text/html")){
+        console.warn("CorpTrace external page fetch was not usable",{url:sourceUrl,status:response.status,contentType:response.headers.get("content-type")});
+        if(candidate.snippet.length >= 50) {
+          const domain = new URL(sourceUrl).hostname.toLowerCase().replace(/^www\./,"");
+          sources.push({title:candidate.title,url:sourceUrl,domain,sourceType,retrievedAt:new Date().toISOString(),evidence:[{heading:"Search result snippet (page fetch unavailable)",paragraph:1,excerpt:candidate.snippet.slice(0,720)}],evidenceOrigin:"search_result_snippet"});
+        }
+        continue;
+      }
+      const url=cleanUrl(response.url||sourceUrl,sourceUrl); if(!url)continue; const html=(await response.text()).slice(0,2_000_000), pageText=textOf(html);
       const title=decode(html.match(/<title[^>]*>([\s\S]*?)<\/title>/i)?.[1]??candidate.title).replace(/<[^>]+>/g," ").trim().slice(0,180);
       const hay=normalise(title+" "+pageText.slice(0,12000)), matched=terms.filter(t=>hay.includes(t)).length;
       if(matched===0)continue;
       const evidence=extractBlocks(html);
-      if(!evidence.length){console.warn("CorpTrace external page yielded no evidence blocks",{url,title,contentLength:html.length,textLength:pageText.length});continue;}
       const domain=new URL(url).hostname.toLowerCase().replace(/^www\./,"");
-      sources.push({title:title||candidate.title,url,domain,sourceType:classify(url, companyName),retrievedAt:new Date().toISOString(),evidence});
+      if(!evidence.length){
+        console.warn("CorpTrace external page yielded no evidence blocks",{url,title,contentLength:html.length,textLength:pageText.length});
+        if(candidate.snippet.length >= 50) sources.push({title:title||candidate.title,url,domain,sourceType,retrievedAt:new Date().toISOString(),evidence:[{heading:"Search result snippet (page retrieved; no evidence blocks)",paragraph:1,excerpt:candidate.snippet.slice(0,720)}],evidenceOrigin:"search_result_snippet"});
+        continue;
+      }
+      sources.push({title:title||candidate.title,url,domain,sourceType,retrievedAt:new Date().toISOString(),evidence,evidenceOrigin:"retrieved_page"});
     }catch(error){console.warn("CorpTrace external page retrieval failed",{url:candidate.url,error:error instanceof Error?error.message:String(error)});}
   }
   const ranked=sources.sort((a,b)=>({company:0,regulator:1,business_publication:2,other:3}[a.sourceType]-{company:0,regulator:1,business_publication:2,other:3}[b.sourceType])).slice(0,12);
