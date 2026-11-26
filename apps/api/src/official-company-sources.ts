@@ -111,6 +111,11 @@ export async function findOfficialCompanySources(companyName: string): Promise<{
       if (!terms.some(term => finalHost.split(".").some(label => label === term || label.startsWith(term)))) continue;
       const html = (await response.text()).slice(0, 1_500_000);
       const title = decodeHtml(html.match(/<title[^>]*>([\s\S]*?)<\/title>/i)?.[1] ?? result.title).replace(/<[^>]+>/g, " ").trim().slice(0, 180);
+      const pageText = plainText(html);
+      const companyIdentity = companyName.replace(/,?\\s+(incorporated|inc|corporation|corp|limited|ltd|plc|company|co)\\.?$/i, "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+      const identityCheck = title.toLowerCase().includes(companyIdentity) || pageText.toLowerCase().includes(companyIdentity)
+        ? "matched_company_name" as const : "not_confirmed" as const;
+      if (identityCheck !== "matched_company_name") continue;
       const evidence = extractEvidence(html);
       if (!evidence.length && !/annual report|investor|sec filing|10-k/i.test(title + " " + finalUrl)) continue;
       sources.push({
