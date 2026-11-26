@@ -53,3 +53,23 @@ test("extracts source-attributed company facts without treating facility square 
   assert.equal(facts.some(x => x.key === "offices"), false);
   assert.match(facts.find(x => x.key === "business")?.value ?? "", /global technology company/i);
 });
+
+\ntest("filters irrelevant financial footnotes from company profile evidence and normalises sentence starts", () => {
+  const html = [
+    "<h2>Company Overview</h2>",
+    "<p>dell technologies is a global technology company that designs, develops, manufactures and sells computers and infrastructure solutions to customers worldwide.</p>",
+    "<h2>Headquarters and Locations</h2>",
+    "<p>The company is headquartered in Round Rock, Texas and operates in more than 170 countries around the world.</p>",
+    "<h2>Stock-Based Compensation</h2>",
+    "<p>Dell Technologies Inc. Stock-Based Compensation Plan provides stock incentive awards to employees and other service providers of the Company.</p>",
+    "<h2>Revenue by Geography</h2>",
+    "<p>The following table presents net revenue allocated between the United States and foreign countries for the period indicated.</p>",
+    "<h2>Products and Services</h2>",
+    "<p>The company offers personal computers, servers, storage, networking equipment, software and technology support services to businesses and consumers.</p>"
+  ].join("");
+  const evidence = mod.extractBlocks(html);
+  assert.equal(evidence.some(x => /Stock-Based Compensation|net revenue allocated/i.test(x.excerpt)), false);
+  assert.ok(evidence.every(x => /^[A-Z]/.test(x.excerpt)));
+  assert.ok(evidence.some(x => /global technology company/i.test(x.excerpt)));
+  assert.ok(evidence.some(x => /personal computers, servers/i.test(x.excerpt)));
+});
