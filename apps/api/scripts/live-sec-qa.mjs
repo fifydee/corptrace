@@ -248,16 +248,19 @@ for (const company of companies) {
 }
 
 if (runExternalSourceQa) {
+  const companiesWithAnyExternalSource = report.companies.filter(company => (company.externalSourceCount ?? 0) > 0).length;
   const withOfficialCompanyPage = report.companies.filter(company => company.externalSources?.some(source => source.sourceType === "company")).length;
   const withBusinessPublication = report.companies.filter(company => company.externalSources?.some(source => source.sourceType === "business_publication")).length;
   const externalFactCount = report.companies.reduce((total, company) => total + (company.extractedProfileFacts ?? []).filter(fact => !fact.sourceUrl?.includes("sec.gov")).length, 0);
   report.externalDiscoveryCoverage = {
+    companiesWithAnyExternalSource,
     companiesWithOfficialCompanyPages: withOfficialCompanyPage,
     companiesWithBusinessPublications: withBusinessPublication,
     externalProfileFactCount: externalFactCount,
     companiesChecked: report.companies.length,
   };
-  if (withOfficialCompanyPage < 2) failures.push("Fewer than two of three companies returned an official company-domain page");
+  if (companiesWithAnyExternalSource < 2) failures.push("Fewer than two of three companies returned a non-SEC external source");
+  if (withBusinessPublication < 1) failures.push("No established business-publication source was retrieved across the company sample");
   if (withBusinessPublication === 0) report.externalDiscoveryCoverage.warning = "No established business-publication pages were found in this run.";
   if (externalFactCount === 0) report.externalDiscoveryCoverage.factWarning = "No external company profile facts were extracted; SEC facts remain the primary source.";
   await writeFile(outputPath, JSON.stringify(report, null, 2) + "\n");
