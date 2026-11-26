@@ -97,9 +97,9 @@ function App() {
   const categories = [
     { group: "Company profile", items: ["Company overview and history", "Headquarters and registered locations", "Operating regions and countries", "Offices and facilities", "Products and services", "Business segments and revenue mix"] },
     { group: "Financial performance", items: ["Financial summary", "Revenue and income sources", "Expenses and operating costs", "Profitability and margins", "Debt and financial position", "Dividends and share buybacks"] },
-    { group: "People and leadership", items: ["Employee count and workforce", "Employee geography and nationalities", "Leadership and compensation"] },
-    { group: "Products, strategy and investment", items: ["Product and service performance", "Most profitable products or services", "Investment, R&D and AI", "Acquisitions and mergers", "SWOT analysis"] },
-    { group: "Risk and developments", items: ["Risk factors", "Legal cases and disputes", "Regulatory matters and controversies", "Recent company news"] },
+    { group: "People and leadership", items: ["Employee count and workforce", "Employee geography and nationalities", "Workforce by country or region", "Gender representation (where disclosed)", "Leadership changes and compensation"] },
+    { group: "Products, strategy and investment", items: ["Product and service performance", "Most profitable products or services", "New products and development pipeline", "Investment, R&D and AI", "Acquisitions and mergers", "Expansion plans and new facilities", "SWOT analysis"] },
+    { group: "Risk and developments", items: ["Risk factors", "Legal cases and disputes", "Regulatory matters and controversies", "Management changes", "Company announcements", "Recent company news"] },
   ];
   const toggleResearchItem = (item: string) => setPicked(current =>
     current.includes(item) ? current.filter(value => value !== item) : [...current, item]
