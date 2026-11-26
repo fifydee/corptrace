@@ -82,17 +82,14 @@ function App() {
       const [metricResponse, filingResponse] = await Promise.all([
         fetch(apiUrl(`/sec/company/${item.cik}/metrics`)),
         fetch(apiUrl(`/sec/company/${item.cik}/submissions`)),
-        fetch(apiUrl(`/sec/company/${item.cik}/research?topics=${encodeURIComponent(picked.join("|"))}`)),
       ]);
       const metricBody = await metricResponse.json();
       const filingBody = await filingResponse.json();
-      const narrativeBody = await narrativeResponse.json();
       if (!metricResponse.ok) throw new Error(metricBody.error ?? "Could not retrieve company facts.");
       if (!filingResponse.ok) throw new Error(filingBody.error ?? "Could not retrieve filing history.");
       setMetrics(metricBody); setFilings(filingBody);
-      if (narrativeResponse.ok) setNarrative(narrativeBody);
     } catch (error) {
-      setResearchError(error instanceof Error ? error.message : "Research request failed.");
+      setResearchError(error instanceof Error ? error.message : "Company information request failed.");
     } finally { setResearchLoading(false); }
   }
 
