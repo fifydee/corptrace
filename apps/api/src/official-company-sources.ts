@@ -91,7 +91,7 @@ export function extractBlocks(html: string): Evidence[] {
     const tag=block[1].toLowerCase(), t=textOf(block[2]).replace(/\s+/g," ").trim(); if(!t) continue;
     if(tag.startsWith("h")){heading=t.slice(0,160);continue;}
     paragraph++;
-    if(t.length<55 || t.length>1800 || !include.test(t) || exclude.test(heading+" "+t)) continue;
+    if(t.length<30 || t.length>1800 || !include.test(t) || exclude.test(heading+" "+t)) continue;
     if(/^the following table|^see (the )?table|^for additional information/i.test(t)) continue;
     const sentences=t.split(/(?<=[.!?])\s+(?=[A-Z0-9])/).filter(sentence => include.test(sentence) && !exclude.test(sentence) && !/^the following table|^see (the )?table/i.test(sentence));
     if(!sentences.length) continue;
