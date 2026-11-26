@@ -210,10 +210,10 @@ for (const company of companies) {
       workforceEvidence: workforceFinding?.evidence?.map((item) => item.excerpt) ?? [],
       externalSourceSearch: body.officialSources?.sourceSearch ?? null,
       externalSourceCount: (body.officialSources?.sources ?? []).filter(source => source.url !== body.documentUrl).length,
-      externalSources: (body.officialSources?.sources ?? []).filter(source => source.url !== body.documentUrl).map(source => ({ title: source.title, url: source.url, domain: source.domain, sourceType: source.sourceType, evidence: source.evidence })),
+      externalSources: (body.officialSources?.sources ?? []).filter(source => source.url !== body.documentUrl).map(source => ({ title: source.title, url: source.url, domain: source.domain, sourceType: source.sourceType, evidenceOrigin: source.evidenceOrigin ?? "retrieved_page", evidence: source.evidence })),
       externalSourceSearch: body.officialSources?.sourceSearch ?? null,
       externalSourceCount: (body.officialSources?.sources ?? []).filter(source => source.url !== body.documentUrl).length,
-      externalSources: (body.officialSources?.sources ?? []).filter(source => source.url !== body.documentUrl).map(source => ({ title: source.title, url: source.url, domain: source.domain, sourceType: source.sourceType, evidence: source.evidence })),
+      externalSources: (body.officialSources?.sources ?? []).filter(source => source.url !== body.documentUrl).map(source => ({ title: source.title, url: source.url, domain: source.domain, sourceType: source.sourceType, evidenceOrigin: source.evidenceOrigin ?? "retrieved_page", evidence: source.evidence })),
       extractedProfileFacts: (body.officialSources?.facts ?? []).map((fact) => ({
         key: fact.key,
         value: fact.value,
