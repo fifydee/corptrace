@@ -272,17 +272,17 @@ const researchTopicSectionMap: Record<string, string[]> = {
   "Debt and financial position": ["management"],
   "Dividends and share buybacks": ["management"],
   "Employee count and workforce": ["business", "management"],
-  "Employee geography and nationalities": ["business"],
-  "Leadership and compensation": ["management"],
+  "Employee geography and nationalities": ["business"],\n  "Workforce by country or region": ["business"],\n  "Gender representation (where disclosed)": ["business"],
+  "Leadership and compensation": ["management"],\n  "Leadership changes and compensation": ["management"],
   "Product and service performance": ["business", "management"],
-  "Most profitable products or services": ["business", "management"],
+  "Most profitable products or services": ["business", "management"],\n  "New products and development pipeline": ["business"],
   "Investment, R&D and AI": ["business", "management"],
-  "Acquisitions and mergers": ["business", "legal"],
+  "Acquisitions and mergers": ["business", "legal"],\n  "Expansion plans and new facilities": ["business"],
   "SWOT analysis": ["business", "risk", "management"],
   "Risk factors": ["risk"],
   "Legal cases and disputes": ["legal"],
   "Regulatory matters and controversies": ["risk", "legal"],
-  "Recent company news": [],
+  "Recent company news": [],\n  "Management changes": ["management"],\n  "Company announcements": ["business"],
 };
 
 function buildTopicCoverage(selectedTopics: string[], sections: Array<{ key: string; title: string; dataStatus: string }>) {
