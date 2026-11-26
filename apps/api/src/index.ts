@@ -358,7 +358,7 @@ function buildResearchFindings(
     const patterns = topicEvidencePatterns[topic] ?? [];
     const evidence: ResearchFinding["evidence"] = [];
     for (const section of sections.filter(item => keys.includes(item.key) && item.content)) {
-      const lines = (section.content ?? "").split(/(?<=[.!?])\\s+|\\n+/).map(line => line.trim()).filter(Boolean);
+      const lines = (section.content ?? "").split(/(?<=[.!?])\s+|\n+/).map(line => line.trim()).filter(Boolean);
       for (const line of lines) {
         if (patterns.some(pattern => pattern.test(line))) {
           const excerpt = line.slice(0, 700);
