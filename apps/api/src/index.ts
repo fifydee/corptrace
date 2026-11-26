@@ -1,35 +1,4 @@
-const researchTopicSectionMap: Record<string, string[]> = {
-  "Company overview and history": ["business"],
-  "Headquarters and registered locations": ["business"],
-  "Operating regions and countries": ["business"],
-  "Offices and facilities": ["business"],
-  "Products and services": ["business"],
-  "Business segments and revenue mix": ["business", "management"],
-  "Financial summary": ["management"],
-  "Revenue and income sources": ["management"],
-  "Expenses and operating costs": ["management"],
-  "Profitability and margins": ["management"],
-  "Debt and financial position": ["management"],
-  "Dividends and share buybacks": ["management"],
-  "Employee count and workforce": ["business", "management"],
-  "Employee geography and nationalities": ["business"],
-  "Workforce by country or region": ["business"],
-  "Gender representation (where disclosed)": ["business"],
-  "Leadership changes and compensation": ["management"],
-  "Product and service performance": ["business", "management"],
-  "Most profitable products or services": ["business", "management"],
-  "New products and development pipeline": ["business"],
-  "Investment, R&D and AI": ["business", "management"],
-  "Acquisitions and mergers": ["business", "legal"],
-  "Expansion plans and new facilities": ["business"],
-  "SWOT analysis": ["business", "risk", "management"],
-  "Risk factors": ["risk"],
-  "Legal cases and disputes": ["legal"],
-  "Regulatory matters and controversies": ["risk", "legal"],
-  "Recent company news": [],
-  "Management changes": ["management"],
-  "Company announcements": ["business"],
-};import { findOfficialCompanySources, extractBlocks, extractFacts } from "./official-company-sources";
+import { findOfficialCompanySources, extractBlocks, extractFacts } from "./official-company-sources";
 import { cleanFilingText, findSectionHeading, extractItemSection } from "./filing-parser.mjs";
 
 export interface Env {
