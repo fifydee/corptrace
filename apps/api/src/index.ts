@@ -392,7 +392,7 @@ async function getCompanyResearch(cik: string, userAgent: string, selectedTopics
   if (!submissionsResponse.ok) return json({ error: "SEC filing submissions request failed.", upstreamStatus: submissionsResponse.status }, 502);
   const submissions = await submissionsResponse.json() as SubmissionPayload;
   const companyName = submissions.name ?? "Unknown company";
-  const officialSourcesPromise = findOfficialCompanySources(companyName).catch(() => ({
+  const officialSourcesPromise = findOfficialCompanySources(companyName, selectedTopics).catch(() => ({
     sourceSearch: "unavailable", retrievedAt: new Date().toISOString(), sources: [], facts: [], overview: null,
     notice: "External company website discovery could not be completed; the SEC filing will still be searched as a profile source.",
   }));
