@@ -67,8 +67,10 @@ export function extractBlocks(html: string): Evidence[] {
     paragraph++;
     if(t.length<65 || t.length>1800 || !include.test(t) || exclude.test(heading+" "+t)) continue;
     if(/^the following table|^see (the )?table|^for additional information/i.test(t)) continue;
-    const cleaned=t.charAt(0).toUpperCase()+t.slice(1);
-    out.push({heading,paragraph,excerpt:cleaned.slice(0,1200)});
+    const sentences=t.split(/(?<=[.!?])\s+(?=[A-Z0-9])/).filter(sentence => include.test(sentence) && !exclude.test(sentence));
+    const concise=(sentences.length ? sentences.slice(0,3).join(" ") : t).slice(0,720);
+    const cleaned=concise.charAt(0).toUpperCase()+concise.slice(1);
+    out.push({heading,paragraph,excerpt:cleaned});
     if(out.length>=36) break;
   }
   return out;
