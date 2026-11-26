@@ -27,7 +27,7 @@ export function cleanFilingText(html) {
 
 export function findSectionHeading(text, patterns) {
   const lines = text.split("\n");
-  const candidates = [] = [];
+  const candidates = [];
   let offset = 0;
   for (let lineNumber = 0; lineNumber < lines.length; lineNumber++) {
     const line = lines[lineNumber].trim();
