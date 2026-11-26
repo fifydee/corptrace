@@ -406,7 +406,7 @@ function buildResearchFindings(
     for (const section of relevantSections) {
       const content = section.content ?? "";
       const lines = content
-        .split(/(?<=[.!?])\\s+|\\n+/)
+        .split(/(?<=[.!?])\s+|\n+/)
         .map(line => line.trim())
         .filter(Boolean);
 
