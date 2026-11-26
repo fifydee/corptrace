@@ -375,8 +375,18 @@ function buildResearchFindings(
       };
     }
 
+    const mappedSections = sections.filter(section => keys.includes(section.key));
+    if (!mappedSections.some(section => section.content)) {
+      return {
+        topic,
+        status: "not_searched",
+        evidence: [],
+        explanation: "The relevant annual-filing section could not be reliably located or extracted, so this topic was not searched. This is not evidence that the disclosure is absent.",
+      };
+    }
+
     const evidence: ResearchFinding["evidence"] = [];
-    const relevantSections = sections.filter(section => keys.includes(section.key) && section.content);
+    const relevantSections = mappedSections.filter(section => section.content);
     for (const section of relevantSections) {
       const content = section.content ?? "";
       const lines = content
