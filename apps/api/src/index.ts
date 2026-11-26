@@ -199,8 +199,8 @@ function selectAnnualCandidate(
     filedAt: selected.fact.filed,
     accessionNumber,
     filingUrl,
-    dataStatus: "verified",
-    verificationLevel: "source_verified",
+    dataStatus: "source_traceable",
+    verificationLevel: "source_traceable",
     verificationBasis:
       "This value is an SEC company-facts XBRL fact tied to the identified 10-K, 20-F or 40-F accession. The metric concept, unit, annual duration (where applicable), reporting date and filing metadata passed CorpTrace's source-traceability checks.",
     caveat:
@@ -234,10 +234,10 @@ async function getCandidateMetrics(cik: string, userAgent: string): Promise<Resp
     sourceUrl: endpoint,
     retrievedAt: new Date().toISOString(),
     reportingBasis: "Latest traceable annual SEC filing facts; 10-K, 20-F and 40-F forms",
-    status: "source_verified_data",
+    status: "source_traceable_data",
     metrics,
     notice:
-      "Available figures are verified as reported SEC filing facts when a standard US-GAAP concept, unit, annual period (where applicable), filing form, accession number and filing date are present. This source verification does not establish cross-company comparability or independent audit assurance.",
+      "Available figures are source-traceable SEC XBRL facts when a standard US-GAAP concept, unit, annual period (where applicable), filing form, accession number and filing date are present. These checks establish a trace to reported data; they do not independently validate metric selection, issuer-specific accounting context, restatements, cross-company comparability or audit assurance.",
   });
 }
 
