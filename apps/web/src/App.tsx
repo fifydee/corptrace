@@ -124,6 +124,14 @@ function App() {
     { title: "Products & services", description: "The main products, services and business offerings.", keys: [], pattern: /products|services|solutions|client devices|infrastructure|business segments|what we do/i, empty: "Product and service details were not sufficiently extracted from the sources reviewed." },
     { title: "Employees & workforce", description: "Reported employee totals and any disclosed workforce breakdowns.", keys: ["employees"], pattern: /employees|workforce|team members|people worldwide|gender|female|male|workforce by/i, empty: "Employee totals and workforce breakdowns were not available in the retrieved evidence." },
   ];
+  const selectedProfileGroups = profileGroups.filter(group => {
+    const selection = picked.join(" ").toLowerCase();
+    if (group.title === "Company overview") return /company overview|company profile|history/.test(selection);
+    if (group.title === "Headquarters & operating regions") return /headquarters|registered locations|operating regions|countries|offices|facilities/.test(selection);
+    if (group.title === "Products & services") return /products|services|business segments/.test(selection);
+    if (group.title === "Employees & workforce") return /employee|workforce|gender|nationalities/.test(selection);
+    return false;
+  });
   const profileSources = narrative?.officialSources?.sources ?? [];
   const profileFacts = narrative?.officialSources?.facts ?? [];
   const getProfileFact = (key: string) => profileFacts.find(fact => fact.key === key);
@@ -171,7 +179,7 @@ function App() {
         </>}
         {narrative?.officialSources && <section className="company-profile">
           <div className="profile-heading"><div><label>COMPANY PROFILE</label><h2>Get to know {company.companyName}</h2><p>A clear summary of the company, its markets, offerings and people. Each statement links to the source it came from.</p></div><span>Updated {new Date(narrative.officialSources.retrievedAt).toLocaleDateString()}</span></div>
-          <div className="profile-grid">{profileGroups.map(group => {
+          <div className="profile-grid">{selectedProfileGroups.map(group => {
             const facts = group.keys.map(getProfileFact).filter(Boolean);
             const evidence = getProfileEvidence(group.pattern).filter(item => !facts.some(fact => fact?.evidence === item.excerpt));
             return <article className="profile-card" key={group.title}><h3>{group.title}</h3><p className="profile-description">{group.description}</p>
