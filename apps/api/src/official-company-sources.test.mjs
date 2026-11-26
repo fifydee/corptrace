@@ -11,7 +11,8 @@ const mod = await import("data:text/javascript;base64," + Buffer.from(compiled).
 
 test("decodes HTML entities and preserves readable paragraph boundaries", () => {
   assert.equal(mod.textOf("<p>Dell &amp; Co. has &#57;7,000 employees.</p><p>Second paragraph.</p>"),
-    "Dell & Co. has 97,000 employees.\nSecond paragraph.");
+    "Dell & Co. has 97,000 employees.
+Second paragraph.");
 });
 
 test("unwraps DuckDuckGo redirect links and rejects unsafe protocols", () => {
@@ -54,7 +55,8 @@ test("extracts source-attributed company facts without treating facility square 
   assert.match(facts.find(x => x.key === "business")?.value ?? "", /global technology company/i);
 });
 
-\ntest("filters irrelevant financial footnotes from company profile evidence and normalises sentence starts", () => {
+
+test("filters irrelevant financial footnotes from company profile evidence and normalises sentence starts", () => {
   const html = [
     "<h2>Company Overview</h2>",
     "<p>dell technologies is a global technology company that designs, develops, manufactures and sells computers and infrastructure solutions to customers worldwide.</p>",
@@ -74,7 +76,8 @@ test("extracts source-attributed company facts without treating facility square 
   assert.ok(evidence.some(x => /personal computers, servers/i.test(x.excerpt)));
 });
 
-\ntest("rejects stock-compensation paragraphs even when they mention employees and services", () => {
+
+test("rejects stock-compensation paragraphs even when they mention employees and services", () => {
   const html = [
     "<h2>Stock-Based Compensation</h2>",
     "<p>The stock-based compensation plan provides stock incentive awards to employees and other service providers of the Company.</p>",
