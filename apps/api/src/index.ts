@@ -438,7 +438,8 @@ async function getCompanyResearch(cik: string, userAgent: string, selectedTopics
     retrievedAt: new Date().toISOString(),
     status: "filing_sections_extracted",
     sections,
-    notice: "Section extraction preserves paragraph and table-cell boundaries and uses heuristic heading selection to reduce table-of-contents matches. Extracted passages remain candidates: individual statements, tables, and product-level profitability are not independently verified."
+    findings: buildResearchFindings(selectedTopics, sections, documentUrl),
+    notice: "The report searches selected topics within the latest identified annual filing. Evidence excerpts are source-attributed, not independently audited. A not-found result means no matching disclosure was found in the sections reviewed, not that the information does not exist elsewhere."
   });
 }
 
