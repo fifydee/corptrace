@@ -65,10 +65,10 @@ export function extractBlocks(html: string): Evidence[] {
     const tag=block[1].toLowerCase(), t=textOf(block[2]).replace(/\s+/g," ").trim(); if(!t) continue;
     if(tag.startsWith("h")){heading=t.slice(0,160);continue;}
     paragraph++;
-    if(t.length<65 || t.length>1800 || !include.test(t) || exclude.test(heading+" "+t)) continue;
+    if(t.length<55 || t.length>1800 || !include.test(t) || exclude.test(heading+" "+t)) continue;
     if(/^the following table|^see (the )?table|^for additional information/i.test(t)) continue;
     const sentences=t.split(/(?<=[.!?])\s+(?=[A-Z0-9])/).filter(sentence => include.test(sentence) && !exclude.test(sentence));
-    const concise=(sentences.length ? sentences.slice(0,3).join(" ") : t).slice(0,720);
+    if(!sentences.length) continue;\n    const concise=sentences.slice(0,3).join(" ").slice(0,720);
     const cleaned=concise.charAt(0).toUpperCase()+concise.slice(1);
     out.push({heading,paragraph,excerpt:cleaned});
     if(out.length>=36) break;
@@ -104,8 +104,9 @@ export async function findOfficialCompanySources(companyName:string, selectedTop
     ...(wants("products","services","business segments") ? [`${qName} official products services solutions business segments`,`${qName} annual report products services offerings`] : []),
     ...(wants("employee","workforce","gender","nationalities") ? [`${qName} latest annual report employee headcount workforce geography gender`,`${qName} official workforce employees by region diversity report`] : []),
     ...(wants("financial","revenue","profit","income") ? [`${qName} latest annual report financial results revenue profit investor relations`] : []),
-    `${qName} company profile Reuters Forbes Bloomberg`,
-  ];  const resultSets=await Promise.all(queries.map(q=>searchWeb(q).catch(()=>[])));
+    ...(wants("overview","history","company profile") ? [`${qName} official company profile Reuters Forbes Bloomberg`] : []),
+  ];
+  const resultSets=await Promise.all(queries.map(q=>searchWeb(q).catch(()=>[])));
   const candidates=resultSets.flat().filter((r,i,a)=>a.findIndex(x=>x.url===r.url)===i)
     .filter(r=>{const hay=normalise(r.title+" "+r.snippet+" "+r.url);return terms.some(t=>hay.includes(t));})
     .slice(0,18);
