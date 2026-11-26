@@ -211,16 +211,16 @@ export async function findOfficialCompanySources(companyName:string, selectedTop
   sourceSearch:string;retrievedAt:string;notice:string;sources:CompanySource[];facts:CompanyFact[];
   overview:string|null;
 }>{
-  const terms=companyTerms(companyName), qName='"'+companyName+'"';
+  const terms=companyTerms(companyName), qSimple=terms.join(" ");
   if(!terms.length)return {sourceSearch:"not_run",retrievedAt:new Date().toISOString(),notice:"Company name unavailable.",sources:[],facts:[],overview:null};
   const topicText=selectedTopics.join(" ").toLowerCase();
   const wants=(...terms:string[])=>!selectedTopics.length || terms.some(term=>topicText.includes(term));
   const queries=[
-    ...(wants("overview","history","company profile") ? [`${qName} official company overview history founded what does it do`,`${qName} investor relations about company business description`,`${qName} official about us corporate company profile`,`${qName} company profile Reuters Bloomberg Financial Times`] : []),
-    ...(wants("headquarters","operating regions","locations","countries","offices") ? [`${qName} official headquarters countries of operation offices locations facilities`,`${qName} annual report geographic locations offices facilities countries`] : []),
-    ...(wants("products","services","business segments") ? [`${qName} official products services solutions business segments`,`${qName} annual report products services offerings`] : []),
-    ...(wants("employee","workforce","gender","nationalities") ? [`${qName} latest annual report employee headcount workforce geography gender`,`${qName} official workforce employees by region diversity report`] : []),
-    ...(wants("financial","revenue","profit","income") ? [`${qName} latest annual report financial results revenue profit investor relations`] : []),
+    ...(wants("overview","history","company profile") ? [qSimple+" official company overview about us",qSimple+" company profile Reuters Bloomberg Financial Times"] : []),
+    ...(wants("headquarters","operating regions","locations","countries","offices") ? [qSimple+" official headquarters address locations countries of operation",qSimple+" corporate headquarters principal office annual report"] : []),
+    ...(wants("products","services","business segments") ? [qSimple+" official products services solutions business segments"] : []),
+    ...(wants("employee","workforce","gender","nationalities") ? [qSimple+" employees workforce headcount latest annual report",qSimple+" employees associates workforce by region official"] : []),
+    ...(wants("financial","revenue","profit","income") ? [qSimple+" latest annual report financial results revenue profit investor relations"] : []),
   ];
   const resultSets=await Promise.all(queries.map(q=>searchWeb(q).catch(()=>[])));
   const rawCandidates=resultSets.flat().map(result=>({...result,url:cleanUrl(result.url,"https://www.bing.com/")??result.url})).filter((r,i,a)=>a.findIndex(x=>x.url===r.url)===i);
