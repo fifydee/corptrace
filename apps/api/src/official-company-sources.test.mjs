@@ -117,7 +117,8 @@ test("extracts relevant business descriptions and product offerings across retai
 });
 
 test("extracts Walmart-style associate counts as workforce facts", () => {
-  const html = "<h2>Human Capital</h2><p>Our business is delivered by approximately 2.1 million associates around the world, including 1.6 million associates in the U.S.</p>";
+  // Based on Walmart FY2026 Form 10-K, Item 1A: https://www.sec.gov/Archives/edgar/data/104169/000010416926000055/wmt-20260131.htm
+  const html = "<h2>Human Capital</h2><p>Approximately 2.1 million associates around the world, including approximately 1.6 million associates in the U.S.</p>";
   const evidence = mod.extractBlocks(html);
   const facts = mod.extractFacts([{
     title: "Walmart annual report",
@@ -128,6 +129,21 @@ test("extracts Walmart-style associate counts as workforce facts", () => {
     evidence
   }]);
   assert.equal(facts.find(x => x.key === "employees")?.value, "2.1 million");
+});
+
+test("extracts Pfizer-style employee disclosures from an annual filing", () => {
+  // Based on Pfizer 2025 Form 10-K, Our People: https://www.sec.gov/Archives/edgar/data/78003/000007800326000026/pfe-20251231.htm
+  const html = "<h2>Our People</h2><p>As of December 31, 2025, we employed approximately 75,000 people worldwide.</p>";
+  const evidence = mod.extractBlocks(html);
+  const facts = mod.extractFacts([{
+    title: "Pfizer 2025 Form 10-K",
+    url: "https://www.sec.gov/Archives/edgar/data/78003/000007800326000026/pfe-20251231.htm",
+    domain: "sec.gov",
+    sourceType: "regulator",
+    retrievedAt: "2026-11-26T00:00:00.000Z",
+    evidence
+  }]);
+  assert.equal(facts.find(x => x.key === "employees")?.value, "75,000");
 });
 
 test("does not infer office counts from property descriptions across industries", () => {
