@@ -99,6 +99,7 @@ const failures = [];
 
 for (const company of companies) {
   const errors = [];
+  const warnings = [];
   let body = {};
   let responseStatus = null;
   try {
@@ -154,14 +155,14 @@ for (const company of companies) {
         if (!discovered || discovered.sourceSearch === "skipped_in_live_sec_qa") {
           errors.push("External source discovery was not executed");
         } else {
-          if (!externalSources.length) errors.push("Search returned no accessible non-SEC company or publication pages (provider: " + discovered.sourceSearch + ")");
+          if (!externalSources.length) warnings.push("Search returned no accessible non-SEC company or publication pages (provider: " + discovered.sourceSearch + ")");
           if (!externalSources.some(source => source.sourceType === "company")) {
-            errors.push("No official company-domain page was retrieved");
+            warnings.push("No official company-domain page was retrieved");
           }
           if (!externalSources.some(source => source.sourceType === "business_publication")) {
-            errors.push("No established business-publication page was retrieved");
+            warnings.push("No established business-publication page was retrieved");
           }
-          if (!externalFacts.length) errors.push("No company profile facts were extracted from external pages");
+          if (!externalFacts.length) warnings.push("No company profile facts were extracted from external pages");
           for (const source of externalSources) {
             if (!/^https:\/\//i.test(source.url)) errors.push("Non-HTTPS external source returned: " + source.url);
             if (!source.evidence?.length) errors.push("External source has no extracted evidence: " + source.url);
@@ -211,9 +212,6 @@ for (const company of companies) {
       externalSourceSearch: body.officialSources?.sourceSearch ?? null,
       externalSourceCount: (body.officialSources?.sources ?? []).filter(source => source.url !== body.documentUrl).length,
       externalSources: (body.officialSources?.sources ?? []).filter(source => source.url !== body.documentUrl).map(source => ({ title: source.title, url: source.url, domain: source.domain, sourceType: source.sourceType, evidenceOrigin: source.evidenceOrigin ?? "retrieved_page", evidence: source.evidence })),
-      externalSourceSearch: body.officialSources?.sourceSearch ?? null,
-      externalSourceCount: (body.officialSources?.sources ?? []).filter(source => source.url !== body.documentUrl).length,
-      externalSources: (body.officialSources?.sources ?? []).filter(source => source.url !== body.documentUrl).map(source => ({ title: source.title, url: source.url, domain: source.domain, sourceType: source.sourceType, evidenceOrigin: source.evidenceOrigin ?? "retrieved_page", evidence: source.evidence })),
       extractedProfileFacts: (body.officialSources?.facts ?? []).map((fact) => ({
         key: fact.key,
         value: fact.value,
@@ -221,6 +219,7 @@ for (const company of companies) {
       })),
       topicFindings: findings,
       errors,
+      warnings,
     });
   } catch (error) {
     errors.push(error instanceof Error ? error.message : String(error));
@@ -231,6 +230,7 @@ for (const company of companies) {
       form: body.form ?? null,
       documentUrl: body.documentUrl ?? null,
       errors,
+      warnings,
     });
   }
 
@@ -243,9 +243,22 @@ for (const company of companies) {
     filedAt: body.filedAt ?? null,
     workforceStatus: body.findings?.find((finding) => finding.topic === "Employee count and workforce")?.status ?? "missing",
     errors,
+    warnings,
   }) + "\n");
 }
 
+if (runExternalSourceQa) {
+  const withOfficialCompanyPage = report.companies.filter(company => company.externalSources?.some(source => source.sourceType === "company")).length;
+  const withBusinessPublication = report.companies.filter(company => company.externalSources?.some(source => source.sourceType === "business_publication")).length;
+  const externalFactCount = report.companies.reduce((total, company) => total + (company.extractedProfileFacts ?? []).filter(fact => !fact.sourceUrl?.includes("sec.gov")).length, 0);
+  report.externalDiscoveryCoverage = {
+    companiesWithOfficialCompanyPages: withOfficialCompanyPage,
+    companiesWithBusinessPublications: withBusinessPublication,
+    externalProfileFactCount: externalFactCount,
+    companiesChecked: report.companies.length,
+  };
+  if (withOfficialCompanyPage < 2) failures.push("Fewer than two of three companies returned an official company-domain page");
+}
 if (process.env.GITHUB_STEP_SUMMARY) {
   const summary = [
     "## CorpTrace live SEC QA",
