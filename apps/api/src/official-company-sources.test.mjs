@@ -172,6 +172,9 @@ test("extracts headquarters from SEC principal-office wording and country counts
     factFor("Walmart International conducted business in 18 countries.", "countries")?.value,
     "18"
   );
+  assert.equal(factFor("As of January 30, 2026, we had approximately 97,000 employees.", "employees")?.value, "97,000");
+  assert.equal(factFor("Our business is delivered by approximately 2.1 million associates worldwide.", "employees")?.value, "2.1 million");
+  assert.equal(factFor("As of December 31, 2025, we employed approximately 75,000 people worldwide.", "employees")?.value, "75,000");
 });
 
 test("does not infer office counts from property descriptions across industries", () => {
